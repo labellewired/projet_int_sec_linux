@@ -78,10 +78,9 @@ reboot
 %pre
 %end
 
-%post
+%post --erroronfail
 dnf update -y
 
 # Disable IPv6 system-wide
 grubby --update-kernel=ALL --args="ipv6.disable=1"
-
 %end
