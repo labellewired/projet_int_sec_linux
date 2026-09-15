@@ -21,7 +21,7 @@ acme_users:
       - "REMPLACER_PAR_CLE_PUBLIQUE_ED25519_ALABELLE"
   - name: zlizotte
     authorized_keys:
-      - "REMPLACER_PAR_CLE_PUBLIQUE_ED25519_ZLIZOTTE"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFW+bW3ccHo3abn63yvepSu8HhTwmJj8sXGpjYXP2Cuf zlizotte"
 
 installation_packages:
   - vim
