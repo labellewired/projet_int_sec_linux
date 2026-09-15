@@ -25,7 +25,7 @@ keyboard --xlayouts="us(intl)"
 timezone America/Toronto --utc
 
 # Static IPv4
-network --bootproto=static --device=link --ip=10.10.1.20 --netmask=255.255.255.0 --gateway=10.10.1.2 --onboot=on
+network --bootproto=static --device=link --ip=10.10.1.10 --netmask=255.255.255.0 --gateway=10.10.1.2 --onboot=on
 
 ## DNS Servers
 network --nameserver="10.10.10.40,9.9.9.9"
@@ -57,8 +57,6 @@ autopart --nohome
 ## Packages
 %packages
 @^minimal-environment
-epel-release
-ansible
 python3
 nano
 open-vm-tools
@@ -79,6 +77,8 @@ reboot
 
 %post --erroronfail
 dnf update -y
+dnf install -y epel-release
+dnf install -y ansible
 
 # Disable IPv6 system-wide
 grubby --update-kernel=ALL --args="ipv6.disable=1"
