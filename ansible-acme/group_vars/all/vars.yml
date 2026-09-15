@@ -18,7 +18,7 @@ admin_client_ip: 10.10.10.200
 acme_users:
   - name: alabelle
     authorized_keys:
-      - "REMPLACER_PAR_CLE_PUBLIQUE_ED25519_ALABELLE"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBUwY3Io+q9AuQjH8xvKOHR8S1UoqeofK+hlt1ePERzW admin@client-linux"
   - name: zlizotte
     authorized_keys:
       - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFW+bW3ccHo3abn63yvepSu8HhTwmJj8sXGpjYXP2Cuf zlizotte"
