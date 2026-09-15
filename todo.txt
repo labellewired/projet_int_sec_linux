@@ -2,6 +2,7 @@ To do:
 -Read + Notes X
 -Schema (à mod à la fin)
 -Organise Github
+-Clean Ansible
 -kickstarts
 -Ansible
 -matrice de flux
