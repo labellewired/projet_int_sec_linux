@@ -1,6 +1,0 @@
----
-hostname_fqdn: infra.acme.lan
-public_ip: "{{ infra_public_ip }}"
-admin_ip: "{{ infra_admin_ip }}"
-public_interface: ens33
-admin_interface: ens36

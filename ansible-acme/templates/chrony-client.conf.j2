@@ -1,8 +1,0 @@
-server {{ ntp_server }} iburst
-driftfile /var/lib/chrony/drift
-makestep 1.0 3
-rtcsync
-# Les clients ne servent pas NTP.
-port 0
-logdir /var/log/chrony
-log tracking
