@@ -1,1 +1,59 @@
+---
+# ============================================================
+# ACME - Common firewall configuration
+# Applied to all servers
+# ============================================================
 
+# ------------------------------------------------------------
+# Firewalld service
+# ------------------------------------------------------------
+
+- name: Ensure firewalld is enabled and running
+  ansible.builtin.systemd_service:
+    name: firewalld
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewall zones
+# ------------------------------------------------------------
+
+- name: Ensure public zone exists
+  ansible.posix.firewalld:
+    zone: public
+    state: present
+    permanent: true
+  notify: Reload firewalld
+
+- name: Ensure administration zone exists
+  ansible.posix.firewalld:
+    zone: administration
+    state: present
+    permanent: true
+  notify: Reload firewalld
+
+- name: Set default firewalld zone to drop
+  ansible.builtin.command:
+    cmd: firewall-cmd --set-default-zone=drop
+  register: firewalld_default_zone
+  changed_when: "'ZONE_ALREADY_SET' not in firewalld_default_zone.stderr"
+
+# ------------------------------------------------------------
+# Interface assignments
+# ------------------------------------------------------------
+
+- name: Assign public interface to public zone
+  ansible.posix.firewalld:
+    zone: public
+    interface: "{{ public_interface }}"
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Assign administration interface to administration zone
+  ansible.posix.firewalld:
+    zone: administration
+    interface: "{{ administration_interface }}"
+    state: enabled
+    permanent: true
+    immediate: true
