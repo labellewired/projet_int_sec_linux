@@ -1,1 +1,16 @@
+---
 
+domain: acme.lan
+
+dns_server: 10.10.10.40
+dns_forwarder: 9.9.9.9
+
+admin_network: 10.10.10.0/24
+public_network: 10.10.1.0/24
+
+admin_workstation: 10.10.10.200
+client_workstation: 10.10.1.200
+
+users:
+  - alabelle
+  - zlizotte
