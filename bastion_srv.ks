@@ -74,8 +74,9 @@ reboot
 
 %post --erroronfail
 dnf update -y
-dnf install -y epel-release
-dnf install -y ansible
+dnf install epel-release -y
+dnf update -y
+dnf install ansible-core -y
 
 # Disable IPv6 system-wide
 grubby --update-kernel=ALL --args="ipv6.disable=1"
