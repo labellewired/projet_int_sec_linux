@@ -3,5 +3,5 @@ hostname_fqdn: bastion.acme.lan
 public_ip: "{{ bastion_public_ip }}"
 admin_ip: "{{ bastion_admin_ip }}"
 # Verifier les noms avec ip -br address et les adapter si necessaire.
-public_interface: ens160
-admin_interface: ens192
+public_interface: ens33
+admin_interface: ens36
