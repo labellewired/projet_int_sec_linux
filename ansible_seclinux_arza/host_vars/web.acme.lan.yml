@@ -1,1 +1,5 @@
+---
+acme_hostname: web.acme.lan
 
+public_ip: 10.10.1.20
+administration_ip: 10.10.10.20
