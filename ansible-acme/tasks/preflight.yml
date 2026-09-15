@@ -1,0 +1,62 @@
+---
+- name: Verifier la version du controleur
+  ansible.builtin.assert:
+    that: ansible_version.full is version('2.16', '>=')
+    fail_msg: "Ansible-core 2.16 ou plus recent est requis."
+
+- name: Verifier CentOS Stream 10 et SELinux actif
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == 'CentOS'
+      - ansible_facts.distribution_major_version == '10'
+      - ansible_facts.selinux.status == 'enabled'
+    fail_msg: "CentOS Stream 10 est requis. Si SELinux est disabled, le reactiver et redemarrer avant le playbook."
+
+- name: Verifier les deux interfaces et leurs adresses initiales
+  ansible.builtin.assert:
+    that:
+      - public_interface != admin_interface
+      - public_interface in ansible_facts.interfaces
+      - admin_interface in ansible_facts.interfaces
+      - ansible_facts[public_interface].ipv4.address == public_ip
+      - ansible_facts[admin_interface].ipv4.address == admin_ip
+    fail_msg: "Configurer les deux IP statiques et corriger les noms d'interfaces dans host_vars avant le lancement."
+
+- name: Verifier les cles publiques des comptes
+  ansible.builtin.assert:
+    that:
+      - item.authorized_keys | length > 0
+      - item.authorized_keys | select('match', '^ssh-ed25519 [A-Za-z0-9+/]+={0,3}( .*)?$') | list | length == item.authorized_keys | length
+    fail_msg: "Remplacer les cles publiques dans group_vars/all/vars.yml."
+  loop: "{{ acme_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Verifier la presence des variables Vault
+  ansible.builtin.assert:
+    that:
+      - vault_linux_password_hashes is defined
+      - vault_totp_secrets is defined
+      - vault_database_password is defined
+      - vault_web_admin_password_hash is defined
+    fail_msg: "Remplir secrets.yml.example, le copier en secrets.yml et le chiffrer avec Ansible Vault."
+
+- name: Verifier les secrets des comptes
+  ansible.builtin.assert:
+    that:
+      - vault_linux_password_hashes[item.name] is match('^\\$6\\$')
+      - vault_totp_secrets[item.name] is match('^[A-Z2-7]{32,}$')
+    fail_msg: "Hachage Linux ou graine TOTP invalide dans le Vault."
+  loop: "{{ acme_users }}"
+  no_log: true
+
+- name: Verifier les secrets web et les identifiants SQL
+  ansible.builtin.assert:
+    that:
+      - vault_database_password | length >= 16
+      - "'REMPLACER' not in vault_database_password"
+      - vault_web_admin_password_hash is match('^\\$6\\$')
+      - acme_database is match('^[a-z][a-z0-9_]{0,31}$')
+      - acme_database_user is match('^[a-z][a-z0-9_]{0,31}$')
+      - web_admin_user is match('^[A-Za-z0-9_]+$')
+  no_log: true

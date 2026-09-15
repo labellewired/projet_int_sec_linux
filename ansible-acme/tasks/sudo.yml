@@ -1,0 +1,22 @@
+---
+- name: Configurer et journaliser sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/00-acme
+    content: |
+      Defaults use_pty
+      Defaults logfile="/var/log/sudo.log"
+      %wheel ALL=(ALL) ALL
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Preparer le journal sudo sans modifier ses dates a chaque execution
+  ansible.builtin.file:
+    path: /var/log/sudo.log
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+    owner: root
+    group: root
+    mode: "0600"

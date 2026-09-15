@@ -1,0 +1,5 @@
+[Definition]
+actionstart = /usr/bin/firewall-cmd --state
+actioncheck = /usr/bin/firewall-cmd --state
+actionban = /usr/bin/firewall-cmd --zone=public --add-rich-rule='rule priority="-100" family="ipv4" source address="<ip>" port port="{{ ssh_port }}" protocol="tcp" drop'
+actionunban = /usr/bin/firewall-cmd --zone=public --remove-rich-rule='rule priority="-100" family="ipv4" source address="<ip>" port port="{{ ssh_port }}" protocol="tcp" drop'

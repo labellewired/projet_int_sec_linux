@@ -1,0 +1,7 @@
+---
+- name: Installer les outils du controleur
+  ansible.builtin.dnf:
+    name: [ansible-core, git, openssh-clients]
+    state: present
+# Le repertoire du playbook et la cle privee sont places sur le bastion
+# AVANT le lancement. La cle privee n'est jamais publiee sur GitHub.

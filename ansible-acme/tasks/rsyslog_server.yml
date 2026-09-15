@@ -1,0 +1,33 @@
+---
+- name: Creer le repertoire de configuration et le stockage distant
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop: [/etc/rsyslog.d, /var/log/remote]
+
+- name: Configurer le collecteur TCP limite a bastion et web
+  ansible.builtin.template:
+    src: rsyslog-server.conf.j2
+    dest: /etc/rsyslog.d/10-acme-collector.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog
+
+- name: Restaurer les contextes SELinux du stockage
+  ansible.builtin.command: restorecon -Rv /var/log/remote
+  register: acme_remote_log_labels
+  changed_when: acme_remote_log_labels.stdout | length > 0
+
+- name: Valider rsyslog
+  ansible.builtin.command: rsyslogd -N1
+  changed_when: false
+
+- name: Demarrer le collecteur
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    state: started
+    enabled: true

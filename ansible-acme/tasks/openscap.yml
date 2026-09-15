@@ -1,0 +1,5 @@
+---
+- name: Installer les outils d'audit sur infra
+  ansible.builtin.dnf:
+    name: [openscap-scanner, scap-security-guide]
+    state: present

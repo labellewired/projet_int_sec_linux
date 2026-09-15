@@ -1,0 +1,29 @@
+<?php
+declare(strict_types=1);
+header('Content-Type: text/html; charset=utf-8');
+
+try {
+    $config = json_decode(
+        file_get_contents('/etc/acme/web.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR
+    );
+    $pdo = new PDO(
+        'mysql:host=' . $config['host'] . ';dbname=' . $config['database'] . ';charset=utf8mb4',
+        $config['username'],
+        $config['password'],
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+    $message = $pdo->query('SELECT message FROM status WHERE id = 1')->fetchColumn();
+    if ($message === false) {
+        throw new RuntimeException('Message applicatif absent.');
+    }
+    $safeMessage = htmlspecialchars((string)$message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    echo '<!doctype html><html lang="fr"><meta charset="utf-8">';
+    echo '<title>ACME</title><h1>ACME</h1><p>' . $safeMessage . '</p></html>';
+} catch (Throwable $error) {
+    error_log('ACME: echec de connexion ou de lecture de la base.');
+    http_response_code(503);
+    echo '<h1>Service temporairement indisponible</h1>';
+}

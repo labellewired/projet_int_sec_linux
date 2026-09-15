@@ -1,0 +1,56 @@
+---
+- name: Exporter les configurations finales a remettre
+  hosts: servers
+  become: true
+  tasks:
+    - name: Recuperer les configurations communes
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "exports/configurations/{{ inventory_hostname }}/"
+        flat: true
+      loop:
+        - /etc/ssh/sshd_config.d/00-acme.conf
+        - /etc/chrony.conf
+        - /etc/audit/rules.d/50-acme.rules
+        - /etc/firewalld/zones/admin.xml
+        - /etc/firewalld/zones/public.xml
+
+    - name: Recuperer les configurations bastion
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "exports/configurations/{{ inventory_hostname }}/"
+        flat: true
+      loop:
+        - /etc/pam.d/sshd
+        - /etc/fail2ban/jail.local
+        - /etc/fail2ban/action.d/acme-firewalld.conf
+      when: "'bastion' in group_names"
+
+    - name: Recuperer les configurations web
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "exports/configurations/{{ inventory_hostname }}/"
+        flat: true
+      loop:
+        - /etc/nginx/conf.d/acme.conf
+        - /etc/my.cnf.d/90-acme-server.cnf
+        - /etc/pki/tls/certs/acme-web.crt
+      when: "'web' in group_names"
+
+    - name: Recuperer les configurations infra
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "exports/configurations/{{ inventory_hostname }}/"
+        flat: true
+      loop:
+        - /etc/named.conf
+        - "{{ forward_zone_file }}"
+        - /etc/rsyslog.d/10-acme-collector.conf
+      when: "'infra' in group_names"
+
+    - name: Recuperer les configurations des clients rsyslog
+      ansible.builtin.fetch:
+        src: /etc/rsyslog.d/90-acme-forward.conf
+        dest: "exports/configurations/{{ inventory_hostname }}/"
+        flat: true
+      when: "'infra' not in group_names"

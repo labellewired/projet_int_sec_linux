@@ -1,0 +1,90 @@
+---
+domain_name: acme.lan
+public_network: 10.10.1.0/24
+admin_network: 10.10.10.0/24
+network_prefix: 24
+
+bastion_public_ip: 10.10.1.10
+bastion_admin_ip: 10.10.10.10
+web_public_ip: 10.10.1.20
+web_admin_ip: 10.10.10.20
+infra_public_ip: 10.10.1.40
+infra_admin_ip: 10.10.10.40
+client_public_ip: 10.10.1.200
+admin_client_ip: 10.10.10.200
+
+# Remplacer chaque valeur par une VRAIE cle PUBLIQUE ed25519.
+# Pour alabelle, inclure aussi la cle publique du controleur Ansible.
+acme_users:
+  - name: alabelle
+    authorized_keys:
+      - "REMPLACER_PAR_CLE_PUBLIQUE_ED25519_ALABELLE"
+  - name: zlizotte
+    authorized_keys:
+      - "REMPLACER_PAR_CLE_PUBLIQUE_ED25519_ZLIZOTTE"
+
+installation_packages:
+  - vim
+  - curl
+  - git
+  - sudo
+  - openssh-server
+  - openssh-clients
+  - firewalld
+  - chrony
+  - rsyslog
+  - audit
+  - NetworkManager
+  - python3
+  - python3-libselinux
+  - python3-libsemanage
+  - policycoreutils-python-utils
+
+unnecessary_services:
+  - kea-dhcp4
+  - vsftpd
+  - smb
+  - nmb
+  - nfs-server
+unnecessary_packages:
+  - kea
+  - vsftpd
+  - samba
+  - samba-client
+  - nfs-utils
+unnecessary_accounts:
+  - fabhoule
+
+dns_domain: "{{ domain_name }}"
+dns_ns: "infra.{{ domain_name }}"
+dns_admin_email: admin
+# Augmenter le numero si le contenu de la zone DNS change.
+dns_serial: "2026091501"
+forward_zone_file: "/var/named/db.{{ domain_name }}"
+dns_records:
+  - {name: bastion, type: A, value: "{{ bastion_public_ip }}"}
+  - {name: web, type: A, value: "{{ web_public_ip }}"}
+  - {name: infra, type: A, value: "{{ infra_public_ip }}"}
+  - {name: www, type: A, value: "{{ web_public_ip }}"}
+
+# Infra utilise une source externe; bastion/web utilisent seulement infra.
+ntp_pool: ca.pool.ntp.org
+ntp_server: "{{ infra_admin_ip }}"
+
+ssh_port: 22
+fail2ban_maxretry: 5
+fail2ban_findtime: 600
+fail2ban_bantime: 600
+
+web_server_name: "www.{{ domain_name }}"
+web_root: /var/www/acme
+web_admin_user: admin
+acme_database: acme
+acme_database_user: acme_app
+acme_database_message: "ACME : application connectee a MariaDB."
+mariadb_socket: /var/lib/mysql/mysql.sock
+
+# audit.yml est separe : il ne s'execute pas pendant run.yml.
+# Fournir les valeurs apres avoir examine les contenus/profils disponibles.
+openscap_datastream: ""
+openscap_profile: ""

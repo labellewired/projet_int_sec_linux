@@ -1,0 +1,94 @@
+---
+- name: Installer MariaDB et le pilote Python
+  ansible.builtin.dnf:
+    name: [mariadb-server, python3-PyMySQL]
+    state: present
+
+- name: Limiter MariaDB a la boucle locale IPv4
+  ansible.builtin.template:
+    src: mariadb-acme.cnf.j2
+    dest: /etc/my.cnf.d/90-acme-server.cnf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mariadb
+
+- name: Demarrer MariaDB
+  ansible.builtin.systemd_service:
+    name: mariadb
+    state: started
+    enabled: true
+
+- name: Appliquer la configuration avant les requetes
+  ansible.builtin.meta: flush_handlers
+
+- name: Retirer les comptes anonymes
+  ansible.mysql.mysql_user:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    name: ""
+    host_all: true
+    state: absent
+
+- name: Retirer la base de test
+  ansible.mysql.mysql_db:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    name: test
+    state: absent
+
+- name: Creer la base de l'application
+  ansible.mysql.mysql_db:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    name: "{{ acme_database }}"
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+    state: present
+
+- name: Creer le compte applicatif local en lecture seule
+  ansible.mysql.mysql_user:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    name: "{{ acme_database_user }}"
+    host: 127.0.0.1
+    password: "{{ vault_database_password }}"
+    priv: "{{ acme_database }}.*:SELECT"
+    state: present
+  no_log: true
+
+- name: Examiner l'existence de la table applicative
+  ansible.mysql.mysql_query:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    query: "SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema = %s AND table_name = 'status'"
+    positional_args: ["{{ acme_database }}"]
+  register: acme_table_status
+  changed_when: false
+
+- name: Creer la table seulement si elle manque
+  ansible.mysql.mysql_query:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    query: "CREATE TABLE {{ acme_database }}.status (id INT PRIMARY KEY, message VARCHAR(255) NOT NULL)"
+  when: acme_table_status.query_result[0][0].total | int == 0
+
+- name: Lire le message applicatif existant
+  ansible.mysql.mysql_query:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    query: "SELECT message FROM {{ acme_database }}.status WHERE id = 1"
+  register: acme_current_message
+  changed_when: false
+
+- name: Initialiser ou corriger le message seulement si necessaire
+  ansible.mysql.mysql_query:
+    login_user: root
+    login_unix_socket: "{{ mariadb_socket }}"
+    query: >-
+      INSERT INTO {{ acme_database }}.status (id, message)
+      VALUES (1, %s) ON DUPLICATE KEY UPDATE message = VALUES(message)
+    positional_args: ["{{ acme_database_message }}"]
+  when: >-
+    acme_current_message.query_result[0] | length == 0 or
+    acme_current_message.query_result[0][0].message != acme_database_message

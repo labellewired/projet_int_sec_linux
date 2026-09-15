@@ -1,0 +1,43 @@
+---
+- name: Examiner le fichier TOTP existant
+  ansible.builtin.stat:
+    path: "/home/{{ totp_user.name }}/.google_authenticator"
+  register: acme_totp_file
+
+- name: Lire la graine existante sans l'afficher
+  ansible.builtin.slurp:
+    src: "/home/{{ totp_user.name }}/.google_authenticator"
+  when: acme_totp_file.stat.exists
+  register: acme_existing_totp
+  no_log: true
+
+- name: Initialiser ou remplacer seulement une graine modifiee
+  ansible.builtin.template:
+    src: google-authenticator.j2
+    dest: "/home/{{ totp_user.name }}/.google_authenticator"
+    owner: "{{ totp_user.name }}"
+    group: "{{ totp_user.name }}"
+    mode: "0600"
+  when: >-
+    not acme_totp_file.stat.exists or
+    (acme_existing_totp.content | b64decode).splitlines()[0] != vault_totp_secrets[totp_user.name]
+  no_log: true
+
+- name: Maintenir les permissions du fichier TOTP
+  ansible.builtin.file:
+    path: "/home/{{ totp_user.name }}/.google_authenticator"
+    owner: "{{ totp_user.name }}"
+    group: "{{ totp_user.name }}"
+    mode: "0600"
+
+- name: Maintenir le contexte SELinux du secret TOTP
+  community.general.sefcontext:
+    target: "/home/{{ totp_user.name }}/\\.google_authenticator"
+    setype: auth_home_t
+    state: present
+
+- name: Appliquer le contexte SELinux du secret
+  ansible.builtin.command:
+    argv: [restorecon, -v, "/home/{{ totp_user.name }}/.google_authenticator"]
+  register: acme_totp_label
+  changed_when: acme_totp_label.stdout | length > 0

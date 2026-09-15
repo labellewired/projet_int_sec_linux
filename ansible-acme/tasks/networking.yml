@@ -1,0 +1,54 @@
+---
+# Les deux IP et la passerelle NAT sont installees au depart par Kickstart.
+# On conserve la passerelle existante du reseau public.
+- name: Identifier les profils NetworkManager actifs
+  ansible.builtin.command:
+    argv: [nmcli, -g, GENERAL.CONNECTION, device, show, "{{ item }}"]
+  loop: ["{{ public_interface }}", "{{ admin_interface }}"]
+  register: acme_network_profiles
+  changed_when: false
+
+- name: Verifier les profils actifs
+  ansible.builtin.assert:
+    that:
+      - acme_network_profiles.results[0].stdout | trim not in ['', '--']
+      - acme_network_profiles.results[1].stdout | trim not in ['', '--']
+
+- name: Maintenir la configuration statique et la zone public
+  community.general.nmcli:
+    conn_name: "{{ acme_network_profiles.results[0].stdout | trim }}"
+    ifname: "{{ public_interface }}"
+    type: ethernet
+    method4: manual
+    ip4: ["{{ public_ip }}/{{ network_prefix }}"]
+    dns4: ["{{ infra_public_ip }}"]
+    dns4_ignore_auto: true
+    zone: public
+    autoconnect: true
+    state: present
+  register: acme_public_profile
+
+- name: Maintenir la configuration statique et la zone admin
+  community.general.nmcli:
+    conn_name: "{{ acme_network_profiles.results[1].stdout | trim }}"
+    ifname: "{{ admin_interface }}"
+    type: ethernet
+    method4: manual
+    ip4: ["{{ admin_ip }}/{{ network_prefix }}"]
+    dns4: []
+    dns4_ignore_auto: true
+    never_default4: true
+    zone: admin
+    autoconnect: true
+    state: present
+  register: acme_admin_profile
+
+- name: Reappliquer le profil public modifie
+  ansible.builtin.command:
+    argv: [nmcli, device, reapply, "{{ public_interface }}"]
+  when: acme_public_profile.changed
+
+- name: Reappliquer le profil admin modifie
+  ansible.builtin.command:
+    argv: [nmcli, device, reapply, "{{ admin_interface }}"]
+  when: acme_admin_profile.changed
