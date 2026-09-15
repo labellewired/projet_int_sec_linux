@@ -2,7 +2,6 @@
 text
 
 # repo --name="AppStream" --baseurl=file:///run/install/sources/mount-000-cdrom/AppStream
-repo --name="epel" --baseurl=https://fedoraproject.org
 
 ## Use network installation
 # url --mirrorlist="https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-36&arch=x86_64"
