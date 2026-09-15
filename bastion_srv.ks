@@ -25,7 +25,7 @@ keyboard --xlayouts="us(intl)"
 timezone America/Toronto --utc
 
 # Static IPv4
-network --bootproto=static --device=link --ip=10.10.1.10 --netmask=255.255.255.0 --gateway=10.10.1.2 --ipv6=ignore --onboot=on
+network --bootproto=static --device=link --ip=10.10.1.20 --netmask=255.255.255.0 --gateway=10.10.1.2 --onboot=on
 
 ## DNS Servers
 network --nameserver="10.10.10.40,9.9.9.9"
