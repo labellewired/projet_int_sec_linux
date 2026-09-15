@@ -1,0 +1,73 @@
+---
+
+- name: Base configuration
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Configure hostname
+      ansible.builtin.import_tasks:
+        file: tasks/hostname.yml
+
+    - name: Install essentials packages
+      ansible.builtin.import_tasks:
+        file: tasks/essentials.yml
+
+    - name: Configure DNS
+      ansible.builtin.import_tasks:
+        file: tasks/dns.yml
+
+    - name: Configure DHCP
+      ansible.builtin.import_tasks:
+        file: tasks/dhcp.yml
+
+    - name: Configure FTP
+      ansible.builtin.import_tasks:
+        file: tasks/ftp.yml
+
+    - name: Configure NTP
+      ansible.builtin.import_tasks:
+        file: tasks/ntp.yml
+
+    - name: Configure Samba
+      ansible.builtin.import_tasks:
+        file: tasks/samba.yml
+
+    - name: Configure NFS
+      ansible.builtin.import_tasks:
+        file: tasks/nfs.yml
+
+  handlers:
+    - name: Restart named
+      ansible.builtin.service:
+        name: named
+        state: restarted
+
+    - name: Restart kea-dhcp4
+      ansible.builtin.service:
+        name: kea-dhcp4
+        state: restarted
+
+    - name: Restart vsftpd
+      ansible.builtin.service:
+        name: vsftpd
+        state: restarted
+
+    - name: Restart chronyd
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+
+    - name: Restart smb
+      ansible.builtin.service:
+        name: smb
+        state: restarted
+
+    - name: Restart nfs
+      ansible.builtin.service:
+        name: nfs-server
+        state: restarted
+   
+    - name: Reload NFS exports
+      ansible.builtin.command: exportfs -rav
+      changed_when: false

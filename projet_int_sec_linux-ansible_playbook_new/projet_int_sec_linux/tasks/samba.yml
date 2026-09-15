@@ -1,0 +1,82 @@
+---
+
+# Install Samba packages
+
+- name: Install Samba packages
+  ansible.builtin.dnf:
+    name:
+      - samba
+      - samba-client
+    state: present
+
+# Ensure Samba user exists in system
+
+- name: Ensure Samba user is in system
+  ansible.builtin.user:
+    name: "{{ samba_user }}"
+    state: present
+
+# Create shared directory structure (Samba/NFS root)
+
+- name: Create base shared directory
+  ansible.builtin.file:
+    path: "{{ samba_share_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0775"
+
+- name: Create Samba share directory
+  ansible.builtin.file:
+    path: "{{ samba_share_path }}"
+    state: directory
+    owner: "{{ samba_user }}"
+    group: "{{ samba_user }}"
+    mode: "0775"
+
+# Set SELinux booleans
+
+- name: Allow Samba to access home directories / shares
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    - samba_enable_home_dirs
+    - samba_export_all_rw
+
+# Deploy Samba configuration
+
+- name: Deploy smb configuration
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart smb
+
+# Set Samba password
+
+- name: Set Samba password for user
+  ansible.builtin.shell: |
+    (echo "{{ samba_password }}"; echo "{{ samba_password }}") | smbpasswd -s -a {{ samba_user }}
+  args:
+    creates: "/var/lib/samba/private/passdb.tdb"
+
+# Enable and start Samba service
+
+- name: Enable and start Samba service
+  ansible.builtin.service:
+    name: smb
+    state: started
+    enabled: true
+
+# Firewall configuration
+
+- name: Open Samba firewall service
+  ansible.posix.firewalld:
+    service: samba
+    permanent: true
+    immediate: true
+    state: enabled
