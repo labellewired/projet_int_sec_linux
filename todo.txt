@@ -41,6 +41,7 @@ bastion.acme.lan:
 -contrôleur ansible (target itself)
 ----
 -comptes: alabelle + zlizotte
+-adressage (confirmer si possible avec ansible)
 -SELinux en enforcing
 -Zone par défaut: drop
 -Chaque carte réseau affectée explicitement à une zone firewalld
@@ -61,6 +62,7 @@ web.acme.lan:
 -Nginx en HTTPS (application et sa base de données)
 ----
 -comptes: alabelle + zlizotte
+-adressage (confirmer si possible avec ansible)
 -SELinux en enforcing
 -Zone par défaut: drop
 -Chaque carte réseau affectée explicitement à une zone firewalld
@@ -85,6 +87,7 @@ infra.acme.lan:
 -outils d'audit
 ----
 -comptes: alabelle + zlizotte
+-adressage (confirmer si possible avec ansible)
 -SELinux en enforcing
 -Zone par défaut: drop
 -Chaque carte réseau affectée explicitement à une zone firewalld
