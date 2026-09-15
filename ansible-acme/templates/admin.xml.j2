@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="DROP">
+  <short>admin</short>
+  <description>Segment admin ACME isole</description>
+  <interface name="{{ admin_interface }}"/>
+  <rule family="ipv4">
+    <source address="{{ admin_network }}"/>
+    <port port="{{ ssh_port }}" protocol="tcp"/>
+    <accept/>
+  </rule>
+{% if 'web' in group_names %}
+{% for service in ['http', 'https'] %}
+  <rule family="ipv4">
+    <source address="{{ admin_client_ip }}/32"/>
+    <service name="{{ service }}"/>
+    <accept/>
+  </rule>
+{% endfor %}
+{% elif 'infra' in group_names %}
+  <rule family="ipv4">
+    <source address="{{ admin_network }}"/>
+    <service name="dns"/>
+    <accept/>
+  </rule>
+{% for source in [bastion_admin_ip, web_admin_ip] %}
+  <rule family="ipv4">
+    <source address="{{ source }}/32"/>
+    <service name="ntp"/>
+    <accept/>
+  </rule>
+  <rule family="ipv4">
+    <source address="{{ source }}/32"/>
+    <port port="514" protocol="tcp"/>
+    <accept/>
+  </rule>
+{% endfor %}
+{% endif %}
+</zone>

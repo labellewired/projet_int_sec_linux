@@ -1,0 +1,9 @@
+pool {{ ntp_pool }} iburst
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+bindaddress {{ infra_admin_ip }}
+allow {{ bastion_admin_ip }}/32
+allow {{ web_admin_ip }}/32
+logdir /var/log/chrony
+log tracking

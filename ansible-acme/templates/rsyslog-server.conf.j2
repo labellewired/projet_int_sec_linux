@@ -1,0 +1,23 @@
+module(load="imtcp")
+template(
+    name="AcmeRemoteFile"
+    type="string"
+    string="/var/log/remote/%fromhost-ip%.log"
+)
+ruleset(name="acme_remote") {
+    if ($fromhost-ip == "{{ bastion_admin_ip }}" or $fromhost-ip == "{{ web_admin_ip }}") then {
+        action(
+            type="omfile"
+            dynaFile="AcmeRemoteFile"
+            fileCreateMode="0640"
+            dirCreateMode="0750"
+        )
+    }
+    stop
+}
+input(
+    type="imtcp"
+    address="{{ infra_admin_ip }}"
+    port="514"
+    ruleset="acme_remote"
+)

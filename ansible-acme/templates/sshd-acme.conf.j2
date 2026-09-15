@@ -1,0 +1,40 @@
+# Premier fichier du repertoire : les valeurs sont definies avant les defauts.
+Port {{ ssh_port }}
+AddressFamily inet
+{% if 'bastion' in group_names %}
+ListenAddress {{ public_ip }}
+{% endif %}
+ListenAddress {{ admin_ip }}
+PermitRootLogin no
+AllowUsers{% for user in acme_users %} {{ user.name }}{% endfor %}
+
+PubkeyAuthentication yes
+PubkeyAcceptedAlgorithms ssh-ed25519
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+AuthenticationMethods publickey
+UsePAM yes
+MaxAuthTries 3
+LoginGraceTime 30
+LogLevel VERBOSE
+X11Forwarding no
+AllowAgentForwarding no
+{% if 'bastion' in group_names %}
+# Necessaire au rebond SSH (ProxyJump), limite aux deux serveurs admin.
+AllowTcpForwarding local
+PermitOpen {{ web_admin_ip }}:{{ ssh_port }} {{ infra_admin_ip }}:{{ ssh_port }}
+{% else %}
+AllowTcpForwarding no
+{% endif %}
+PermitTunnel no
+ClientAliveInterval 300
+ClientAliveCountMax 2
+{% if 'bastion' in group_names %}
+
+# MFA seulement pour les connexions recues sur l'IP publique.
+Match LocalAddress {{ public_ip }}
+    KbdInteractiveAuthentication yes
+    AuthenticationMethods publickey,keyboard-interactive:pam
+Match all
+{% endif %}

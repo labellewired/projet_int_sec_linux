@@ -1,0 +1,20 @@
+---
+- name: Installer le module PAM TOTP
+  ansible.builtin.dnf:
+    name: google-authenticator
+    state: present
+
+- name: Initialiser les graines TOTP sans ecraser l'etat des codes utilises
+  ansible.builtin.include_tasks: totp_user.yml
+  loop: "{{ acme_users }}"
+  loop_control:
+    loop_var: totp_user
+    label: "{{ totp_user.name }}"
+
+- name: Configurer PAM SSH pour le deuxieme facteur
+  ansible.builtin.template:
+    src: pam-sshd.j2
+    dest: /etc/pam.d/sshd
+    owner: root
+    group: root
+    mode: "0644"

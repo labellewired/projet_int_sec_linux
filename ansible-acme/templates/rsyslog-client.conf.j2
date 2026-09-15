@@ -1,0 +1,12 @@
+*.* action(
+    type="omfwd"
+    target="{{ infra_admin_ip }}"
+    port="514"
+    protocol="tcp"
+    template="RSYSLOG_SyslogProtocol23Format"
+    action.resumeRetryCount="-1"
+    queue.type="LinkedList"
+    queue.filename="acme_forward"
+    queue.maxDiskSpace="256m"
+    queue.saveOnShutdown="on"
+)

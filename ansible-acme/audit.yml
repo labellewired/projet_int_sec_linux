@@ -1,0 +1,59 @@
+---
+# Audit explicite, distinct du deploiement idempotent run.yml.
+# Identifier un datastream CentOS compatible et un profil avec oscap info.
+- name: Auditer les trois serveurs et recuperer les rapports
+  hosts: servers
+  become: true
+  tasks:
+    - name: Verifier les parametres de l'audit
+      ansible.builtin.assert:
+        that:
+          - openscap_datastream | length > 0
+          - openscap_profile | length > 0
+        fail_msg: "Renseigner openscap_datastream et openscap_profile dans vars.yml apres oscap info."
+
+    - name: Installer les outils sur les cibles a auditer
+      ansible.builtin.dnf:
+        name: [openscap-scanner, scap-security-guide]
+        state: present
+
+    - name: Examiner le contenu SCAP selectionne
+      ansible.builtin.stat:
+        path: "{{ openscap_datastream }}"
+      register: acme_scap_file
+
+    - name: Verifier que le datastream existe
+      ansible.builtin.assert:
+        that: acme_scap_file.stat.exists
+
+    - name: Creer le repertoire des resultats
+      ansible.builtin.file:
+        path: /var/lib/acme-audit
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Executer l'audit sans correction automatique
+      ansible.builtin.command:
+        argv:
+          - oscap
+          - xccdf
+          - eval
+          - --profile
+          - "{{ openscap_profile }}"
+          - --results-arf
+          - /var/lib/acme-audit/results.xml
+          - --report
+          - /var/lib/acme-audit/report.html
+          - "{{ openscap_datastream }}"
+      register: acme_scap_run
+      failed_when: acme_scap_run.rc not in [0, 2]
+      changed_when: false
+
+    - name: Recuperer les rapports sur le bastion
+      ansible.builtin.fetch:
+        src: "/var/lib/acme-audit/{{ item }}"
+        dest: "exports/audit/{{ inventory_hostname }}/{{ item }}"
+        flat: true
+      loop: [results.xml, report.html]

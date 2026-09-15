@@ -1,0 +1,6 @@
+---
+hostname_fqdn: web.acme.lan
+public_ip: "{{ web_public_ip }}"
+admin_ip: "{{ web_admin_ip }}"
+public_interface: ens33
+admin_interface: ens36
