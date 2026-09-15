@@ -2,6 +2,7 @@
 text
 
 # repo --name="AppStream" --baseurl=file:///run/install/sources/mount-000-cdrom/AppStream
+repo --name="epel" --baseurl=https://fedoraproject.org
 
 ## Use network installation
 # url --mirrorlist="https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-36&arch=x86_64"
@@ -24,17 +25,21 @@ keyboard --xlayouts="us(intl)"
 ## System timezone
 timezone America/Toronto --utc
 
-## Network information
-network --bootproto="dhcp" --device="link" --onboot="on"
+# Static IPv4
+network --bootproto=static --device=link --ip=10.10.1.10 --netmask=255.255.255.0 --gateway=10.10.1.2 --ipv6=ignore --onboot=on
 
 ## Hostname
-network --hostname="alabelle.seclinux.lan"
+network --hostname="bastion.acme.lan"
+
+## DNS Servers
+network --nameserver="10.10.10.40,9.9.9.9"
 
 ## Root password
 rootpw --lock
 
 ## User password
-user --name="admin" --groups="wheel" --gecos="admin" --password="password"
+user --name="alabelle" --groups="wheel" --gecos="alabelle" --password="ARZA-Pa$$w0rd/!"
+user --name="zlizotte" --groups="wheel" --gecos="zlizotte" --password="ARZA-Pa$$w0rd/!"
 
 ## Firewall configuration
 firewall --enabled --ssh
@@ -53,6 +58,9 @@ autopart --nohome
 ## Packages
 %packages
 @^minimal-environment
+epel-release
+ansible
+python3
 nano
 open-vm-tools
 %end
@@ -72,5 +80,8 @@ reboot
 
 %post
 dnf update -y
-dnf install epel-release -y
+
+# Disable IPv6 system-wide
+grubby --update-kernel=ALL --args="ipv6.disable=1"
+
 %end
