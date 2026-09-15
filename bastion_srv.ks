@@ -12,7 +12,7 @@ text
 cdrom
 
 ## Initial Setup Agent on first boot
-firstboot --enable
+firstboot --disable
 
 ## System language
 lang en_CA.UTF-8
