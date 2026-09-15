@@ -25,7 +25,7 @@ keyboard --xlayouts="us(intl)"
 timezone America/Toronto --utc
 
 # Static IPv4
-network --bootproto=static --device=ens33 --ip=10.10.1.20 --netmask=255.255.255.0 --gateway=10.10.1.2 --nameserver=10.10.10.40,9.9.9.9 --onboot=on
+network --bootproto=static --device=ens33 --ip=10.10.1.20 --netmask=255.255.255.0 --gateway=10.10.1.2 --nameserver=10.10.1.40,9.9.9.9 --onboot=on
 
 ## Hostname
 network --hostname="web.acme.lan"
