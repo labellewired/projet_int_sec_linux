@@ -1,1 +1,24 @@
+---
 
+- hosts: all
+  become: true
+  tasks:
+    - import_tasks: tasks/common.yml
+    - import_tasks: tasks/networking.yml
+    - import_tasks: tasks/firewall.yml
+    - import_tasks: tasks/ssh.yml
+
+- hosts: bastion
+  become: true
+  tasks:
+    - import_tasks: tasks/bastion.yml
+
+- hosts: web
+  become: true
+  tasks:
+    - import_tasks: tasks/web.yml
+
+- hosts: infra
+  become: true
+  tasks:
+    - import_tasks: tasks/infra.yml
