@@ -1,16 +1,36 @@
 ---
+# ============================================================
+# ACME - Global variables
+# ============================================================
 
-domain: acme.lan
+# Domain
+acme_domain: acme.lan
 
-dns_server: 10.10.10.40
-dns_forwarder: 9.9.9.9
-
-admin_network: 10.10.10.0/24
+# Networks
 public_network: 10.10.1.0/24
+administration_network: 10.10.10.0/24
 
-admin_workstation: 10.10.10.200
-client_workstation: 10.10.1.200
+# Network interfaces
+public_interface: ens33
+administration_interface: ens37
 
-users:
+# Workstations
+public_client_ip: 10.10.1.200
+administration_client_ip: 10.10.10.200
+
+# DNS
+primary_dns: 10.10.10.40
+secondary_dns: 9.9.9.9
+
+# Infrastructure services
+ntp_server: 10.10.10.40
+rsyslog_server: 10.10.10.40
+
+# Common users
+acme_users:
   - alabelle
   - zlizotte
+
+# Common system configuration
+selinux_state: enforcing
+firewalld_default_zone: drop
