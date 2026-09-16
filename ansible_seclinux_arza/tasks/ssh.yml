@@ -21,6 +21,10 @@
     group: root
     mode: "0755"
 
+# ------------------------------------------------------------
+# SSH hardening
+# ------------------------------------------------------------
+
 - name: Deploy ACME SSH security configuration
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/99-acme.conf
@@ -36,6 +40,22 @@
       ClientAliveCountMax 2
       LogLevel VERBOSE
   notify: Restart sshd
+
+# ------------------------------------------------------------
+# Authorized SSH keys
+# ------------------------------------------------------------
+
+- name: Deploy authorized SSH keys for ACME users
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.public_key }}"
+    state: present
+    exclusive: false
+  loop: "{{ acme_ssh_users }}"
+
+# ------------------------------------------------------------
+# SSH service
+# ------------------------------------------------------------
 
 - name: Ensure sshd is enabled and running
   ansible.builtin.systemd_service:
