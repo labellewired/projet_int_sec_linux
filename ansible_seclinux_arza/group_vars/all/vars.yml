@@ -8,6 +8,7 @@ acme_domain: acme.lan
 
 # Networks
 public_network: 10.10.1.0/24
+public_gateway: 10.10.1.2
 administration_network: 10.10.10.0/24
 
 # Network interfaces
