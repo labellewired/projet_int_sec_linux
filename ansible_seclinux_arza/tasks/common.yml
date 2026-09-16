@@ -33,13 +33,15 @@
 
 - name: Create ACME users
   ansible.builtin.user:
-    name: "{{ item }}"
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
     state: present
     create_home: true
     shell: /bin/bash
     groups: wheel
     append: true
   loop: "{{ acme_users }}"
+  no_log: true
 
 # ------------------------------------------------------------
 # SELinux
