@@ -1,1 +1,131 @@
+---
+# ============================================================
+# ACME - Bastion server configuration
+# Applied only to bastion.acme.lan
+# ============================================================
 
+# ------------------------------------------------------------
+# Ansible controller
+# ------------------------------------------------------------
+
+- name: Install Ansible
+  ansible.builtin.dnf:
+    name: ansible-core
+    state: present
+
+# ------------------------------------------------------------
+# Chrony client
+# ------------------------------------------------------------
+
+- name: Configure Chrony to use infrastructure server
+  ansible.builtin.copy:
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      server {{ ntp_server }} iburst
+
+      driftfile /var/lib/chrony/drift
+      makestep 1.0 3
+      rtcsync
+  notify: Restart chronyd
+
+# ------------------------------------------------------------
+# Bastion SSH configuration
+# ------------------------------------------------------------
+
+- name: Configure Bastion-specific SSH settings
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/90-bastion.conf
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      AllowTcpForwarding yes
+  notify: Restart sshd
+
+# ------------------------------------------------------------
+# TOTP
+# ------------------------------------------------------------
+
+- name: Install Google Authenticator PAM module
+  ansible.builtin.dnf:
+    name: google-authenticator
+    state: present
+
+- name: Enable Google Authenticator in SSH PAM configuration
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/sshd
+    line: "auth required pam_google_authenticator.so"
+    insertafter: EOF
+    state: present
+  notify: Restart sshd
+
+# ------------------------------------------------------------
+# Fail2ban
+# ------------------------------------------------------------
+
+- name: Install Fail2ban
+  ansible.builtin.dnf:
+    name: fail2ban
+    state: present
+
+- name: Configure Fail2ban for SSH
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [sshd]
+      enabled = true
+      backend = systemd
+      maxretry = 5
+      findtime = 10m
+      bantime = 10m
+
+- name: Enable and start Fail2ban
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewalld - Administration SSH
+# ------------------------------------------------------------
+
+- name: Allow SSH from administration network
+  ansible.posix.firewalld:
+    zone: administration
+    service: ssh
+    state: enabled
+    permanent: true
+    immediate: true
+
+# ------------------------------------------------------------
+# Firewalld - Public SSH
+# ------------------------------------------------------------
+
+- name: Allow public SSH only from public workstation
+  ansible.posix.firewalld:
+    zone: public
+    rich_rule: >-
+      rule family="ipv4"
+      source address="{{ public_client_ip }}/32"
+      service name="ssh"
+      accept
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Log public SSH attempts
+  ansible.posix.firewalld:
+    zone: public
+    rich_rule: >-
+      rule family="ipv4"
+      service name="ssh"
+      log prefix="ACME-SSH " limit value="5/m"
+    state: enabled
+    permanent: true
+    immediate: true
