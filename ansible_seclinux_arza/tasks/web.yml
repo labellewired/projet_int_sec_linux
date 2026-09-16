@@ -1,1 +1,165 @@
+---
+# ============================================================
+# ACME - Web server configuration
+# Applied only to web.acme.lan
+# ============================================================
 
+# ------------------------------------------------------------
+# Packages
+# ------------------------------------------------------------
+
+- name: Install web server packages
+  ansible.builtin.dnf:
+    name:
+      - nginx
+      - mariadb-server
+      - php
+      - php-fpm
+      - php-mysqlnd
+      - httpd-tools
+    state: present
+
+# ------------------------------------------------------------
+# Nginx
+# ------------------------------------------------------------
+
+- name: Deploy ACME Nginx configuration
+  ansible.builtin.copy:
+    dest: /etc/nginx/conf.d/acme.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      server {
+          listen 80;
+          server_name www.{{ acme_domain }};
+
+          return 301 https://$host$request_uri;
+      }
+
+      server {
+          listen 443 ssl;
+          server_name www.{{ acme_domain }};
+
+          root /var/www/acme;
+          index index.php index.html;
+
+          ssl_certificate /etc/nginx/tls/acme.crt;
+          ssl_certificate_key /etc/nginx/tls/acme.key;
+
+          ssl_protocols TLSv1.2 TLSv1.3;
+
+          location / {
+              try_files $uri $uri/ /index.php?$query_string;
+          }
+
+          location ~ \.php$ {
+              include fastcgi_params;
+              fastcgi_pass unix:/run/php-fpm/www.sock;
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+          }
+
+          location /admin {
+              allow {{ administration_client_ip }};
+              deny all;
+
+              auth_basic "ACME Administration";
+              auth_basic_user_file /etc/nginx/.htpasswd;
+
+              try_files $uri $uri/ /index.php?$query_string;
+          }
+      }
+  notify: Reload nginx
+
+# ------------------------------------------------------------
+# Web application directory
+# ------------------------------------------------------------
+
+- name: Create ACME web root
+  ansible.builtin.file:
+    path: /var/www/acme
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: "0755"
+
+# ------------------------------------------------------------
+# TLS directory
+# ------------------------------------------------------------
+
+- name: Create Nginx TLS directory
+  ansible.builtin.file:
+    path: /etc/nginx/tls
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# ------------------------------------------------------------
+# MariaDB
+# ------------------------------------------------------------
+
+- name: Configure MariaDB to listen only on localhost
+  ansible.builtin.copy:
+    dest: /etc/my.cnf.d/acme.cnf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [mysqld]
+      bind-address=127.0.0.1
+  notify: Restart MariaDB
+
+# ------------------------------------------------------------
+# Services
+# ------------------------------------------------------------
+
+- name: Enable and start MariaDB
+  ansible.builtin.systemd_service:
+    name: mariadb
+    enabled: true
+    state: started
+
+- name: Enable and start PHP-FPM
+  ansible.builtin.systemd_service:
+    name: php-fpm
+    enabled: true
+    state: started
+
+- name: Enable and start Nginx
+  ansible.builtin.systemd_service:
+    name: nginx
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewalld - Public web services
+# ------------------------------------------------------------
+
+- name: Allow HTTP on public network
+  ansible.posix.firewalld:
+    zone: public
+    service: http
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Allow HTTPS on public network
+  ansible.posix.firewalld:
+    zone: public
+    service: https
+    state: enabled
+    permanent: true
+    immediate: true
+
+# ------------------------------------------------------------
+# Firewalld - Administration SSH
+# ------------------------------------------------------------
+
+- name: Allow SSH on administration network
+  ansible.posix.firewalld:
+    zone: administration
+    service: ssh
+    state: enabled
+    permanent: true
+    immediate: true
