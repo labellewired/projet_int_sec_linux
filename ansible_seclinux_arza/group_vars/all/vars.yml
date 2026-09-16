@@ -42,7 +42,7 @@ acme_ssh_users:
   - name: zlizotte
     public_key: "{{ zlizotte_ssh_public_key }}"
 
-alabelle_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB1By4FfGHHFs7tcwo/pHSEckC3peTcijFoAJzsdaUKf alabelle"
+alabelle_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBUwY3Io+q9AuQjH8xvKOHR8S1UoqeofK+hlt1ePERzW alabelle"
 zlizotte_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFW+bW3ccHo3abn63yvepSu8HhTwmJj8sXGpjYXP2Cuf zlizotte"
 
 # Common system configuration
