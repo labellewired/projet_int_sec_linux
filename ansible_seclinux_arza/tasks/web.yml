@@ -18,6 +18,7 @@
       - php-mysqlnd
       - httpd-tools
       - python3-PyMySQL
+      - python3-passlib
       - openssl
     state: present
 
@@ -83,6 +84,7 @@
     owner: root
     group: nginx
     mode: "0640"
+  no_log: true
 
 # ------------------------------------------------------------
 # MariaDB
