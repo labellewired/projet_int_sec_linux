@@ -24,7 +24,14 @@
     group: root
     mode: "0600"
     content: |
+      PubkeyAuthentication yes
+      KbdInteractiveAuthentication yes
+      UsePAM yes
       AllowTcpForwarding yes
+
+      Match Address {{ public_client_ip }}
+          AuthenticationMethods publickey,keyboard-interactive
+          PasswordAuthentication no
   notify: Restart sshd
 
 # ------------------------------------------------------------
@@ -44,6 +51,25 @@
     state: present
   notify: Restart sshd
 
+- name: Deploy Google Authenticator configuration for ACME users
+  ansible.builtin.copy:
+    dest: "/home/{{ item.name }}/.google_authenticator"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0400"
+    content: |
+      {{ item.secret }}
+      " RATE_LIMIT 3 30
+      " WINDOW_SIZE 3
+      " DISALLOW_REUSE
+      " TOTP_AUTH
+  loop:
+    - name: alabelle
+      secret: "{{ vault_alabelle_totp_secret }}"
+    - name: zlizotte
+      secret: "{{ vault_zlizotte_totp_secret }}"
+  no_log: true
+  
 # ------------------------------------------------------------
 # Fail2ban
 # ------------------------------------------------------------
