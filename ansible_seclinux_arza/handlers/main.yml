@@ -27,3 +27,13 @@
   ansible.builtin.systemd_service:
     name: chronyd
     state: restarted
+
+- name: Reload nginx
+  ansible.builtin.systemd_service:
+    name: nginx
+    state: reloaded
+
+- name: Restart MariaDB
+  ansible.builtin.systemd_service:
+    name: mariadb
+    state: restarted
