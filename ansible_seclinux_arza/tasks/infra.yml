@@ -16,8 +16,6 @@
       - chrony
       - rsyslog
       - audit
-      - openscap-scanner
-      - scap-security-guide
     state: present
 
 # ------------------------------------------------------------
