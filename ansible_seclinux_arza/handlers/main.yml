@@ -56,11 +56,3 @@
 - name: Load audit rules
   ansible.builtin.command:
     cmd: augenrules --load
-
-- name: Configure rsyslog clients
-  ansible.builtin.include_tasks: tasks/rsyslog_client.yml
-  when: inventory_hostname in groups['bastion'] or inventory_hostname in groups['web']
-
-- name: Configure Chrony clients
-  ansible.builtin.include_tasks: tasks/chrony_client.yml
-  when: inventory_hostname in groups['bastion'] or inventory_hostname in groups['web']
