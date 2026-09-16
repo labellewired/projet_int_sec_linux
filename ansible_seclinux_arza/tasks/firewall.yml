@@ -23,14 +23,17 @@
     zone: public
     state: present
     permanent: true
-  notify: Reload firewalld
 
 - name: Ensure administration zone exists
   ansible.posix.firewalld:
     zone: administration
     state: present
     permanent: true
-  notify: Reload firewalld
+
+- name: Reload firewalld after creating zones
+  ansible.builtin.command:
+    cmd: firewall-cmd --reload
+  changed_when: false
 
 - name: Set default firewalld zone to drop
   ansible.builtin.lineinfile:
@@ -38,6 +41,18 @@
     regexp: '^DefaultZone='
     line: 'DefaultZone=drop'
   notify: Reload firewalld
+
+# ------------------------------------------------------------
+# Zone services
+# ------------------------------------------------------------
+
+- name: Allow SSH from administration network
+  ansible.posix.firewalld:
+    zone: administration
+    service: ssh
+    state: enabled
+    permanent: true
+    immediate: true
 
 - name: Remove SSH from public zone
   ansible.posix.firewalld:
@@ -55,11 +70,6 @@
     permanent: true
     immediate: true
 
-- name: Reload firewalld after creating zones
-  ansible.builtin.command:
-    cmd: firewall-cmd --reload
-  changed_when: false
-  
 # ------------------------------------------------------------
 # Interface assignments
 # ------------------------------------------------------------
