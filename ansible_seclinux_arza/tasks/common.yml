@@ -85,7 +85,7 @@
   notify: Restart systemd-journald
 
 # ------------------------------------------------------------
-# Sudo hardening and logging
+# Sudo hardening
 # ------------------------------------------------------------
 
 - name: Ensure sudo uses a pseudo-terminal
@@ -97,6 +97,18 @@
     content: |
       Defaults use_pty
     validate: '/usr/sbin/visudo -cf %s'
+
+# ------------------------------------------------------------
+# Kernel hardening
+# ------------------------------------------------------------
+
+- name: Enable Address Space Layout Randomization (ASLR)
+  ansible.posix.sysctl:
+    name: kernel.randomize_va_space
+    value: "2"
+    state: present
+    sysctl_set: true
+    reload: true
 
 # ------------------------------------------------------------
 # Sudo logging
