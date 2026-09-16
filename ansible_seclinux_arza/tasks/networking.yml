@@ -22,7 +22,7 @@
     method4: manual
     autoconnect: true
     state: present
-  notify: Reload NetworkManager
+    conn_reload: true
 
 # ------------------------------------------------------------
 # Administration interface
@@ -38,4 +38,9 @@
     never_default4: true
     autoconnect: true
     state: present
-  notify: Reload NetworkManager
+    conn_reload: true
+
+- name: Activate administration network interface
+  community.general.nmcli:
+    conn_name: "{{ administration_interface }}"
+    state: up
