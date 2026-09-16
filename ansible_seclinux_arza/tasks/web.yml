@@ -72,7 +72,7 @@
   notify: Reload nginx
 
 # ------------------------------------------------------------
-# Web application directory
+# Web application
 # ------------------------------------------------------------
 
 - name: Create ACME web root
@@ -82,6 +82,14 @@
     owner: nginx
     group: nginx
     mode: "0755"
+
+- name: Deploy ACME web application
+  ansible.builtin.template:
+    src: index.php.j2
+    dest: /var/www/acme/index.php
+    owner: nginx
+    group: nginx
+    mode: "0644"
 
 # ------------------------------------------------------------
 # TLS directory
