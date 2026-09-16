@@ -85,6 +85,20 @@
   notify: Restart systemd-journald
 
 # ------------------------------------------------------------
+# Sudo hardening and logging
+# ------------------------------------------------------------
+
+- name: Ensure sudo uses a pseudo-terminal
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/10-acme-use-pty
+    owner: root
+    group: root
+    mode: "0440"
+    content: |
+      Defaults use_pty
+    validate: '/usr/sbin/visudo -cf %s'
+
+# ------------------------------------------------------------
 # Sudo logging
 # ------------------------------------------------------------
 
