@@ -39,6 +39,27 @@
     line: 'DefaultZone=drop'
   notify: Reload firewalld
 
+- name: Remove SSH from public zone
+  ansible.posix.firewalld:
+    zone: public
+    service: ssh
+    state: disabled
+    permanent: true
+    immediate: true
+
+- name: Remove Cockpit from public zone
+  ansible.posix.firewalld:
+    zone: public
+    service: cockpit
+    state: disabled
+    permanent: true
+    immediate: true
+
+- name: Reload firewalld after creating zones
+  ansible.builtin.command:
+    cmd: firewall-cmd --reload
+  changed_when: false
+  
 # ------------------------------------------------------------
 # Interface assignments
 # ------------------------------------------------------------
