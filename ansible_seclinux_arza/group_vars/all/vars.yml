@@ -29,8 +29,10 @@ rsyslog_server: 10.10.10.40
 
 # Common users
 acme_users:
-  - alabelle
-  - zlizotte
+  - name: alabelle
+    password: "{{ vault_alabelle_password_hash }}"
+  - name: zlizotte
+    password: "{{ vault_zlizotte_password_hash }}"
 
 # SSH users
 acme_ssh_users:
