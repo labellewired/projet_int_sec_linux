@@ -1,4 +1,8 @@
 ---
+# ============================================================
+# ACME - Handlers
+# ============================================================
+
 - name: Restart systemd-journald
   ansible.builtin.systemd_service:
     name: systemd-journald
@@ -13,3 +17,8 @@
   ansible.builtin.systemd_service:
     name: firewalld
     state: reloaded
+
+- name: Restart sshd
+  ansible.builtin.systemd_service:
+    name: sshd
+    state: restarted
