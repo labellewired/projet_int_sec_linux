@@ -93,3 +93,15 @@
     state: enabled
     permanent: true
     immediate: true
+
+- name: Allow SSH from administration network
+  ansible.posix.firewalld:
+    zone: administration
+    rich_rule: >-
+      rule family="ipv4"
+      source address="10.10.10.0/24"
+      service name="ssh"
+      accept
+    state: enabled
+    permanent: true
+    immediate: true
