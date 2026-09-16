@@ -208,7 +208,7 @@
 - name: Disable default Nginx IPv6 listener
   ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
-    regexp: '^\s*listen\s+\[::\]:80;'
+    regexp: '^\s*#?\s*listen\s+\[::\]:80;'
     line: '        # listen       [::]:80;'
     state: present
   notify: Reload nginx
