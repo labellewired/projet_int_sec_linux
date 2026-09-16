@@ -42,3 +42,17 @@
   ansible.builtin.systemd_service:
     name: php-fpm
     state: restarted
+
+- name: Restart named
+  ansible.builtin.systemd_service:
+    name: named
+    state: restarted
+
+- name: Restart rsyslog
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    state: restarted
+
+- name: Load audit rules
+  ansible.builtin.command:
+    cmd: augenrules --load
