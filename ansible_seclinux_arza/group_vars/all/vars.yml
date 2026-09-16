@@ -31,6 +31,22 @@ acme_users:
   - alabelle
   - zlizotte
 
+# SSH users
+
+acme_users:
+  - alabelle
+  - zlizotte
+
+acme_ssh_users:
+  - name: alabelle
+    public_key: "{{ alabelle_ssh_public_key }}"
+
+  - name: zlizotte
+    public_key: "{{ zlizotte_ssh_public_key }}"
+
+alabelle_ssh_public_key: "ssh-ed25519 AAAA... alabelle"
+zlizotte_ssh_public_key: "ssh-ed25519 AAAA... zlizotte"
+
 # Common system configuration
 selinux_state: enforcing
 firewalld_default_zone: drop
