@@ -1,25 +1,16 @@
----
-# ============================================================
-# ACME - Bastion server configuration
-# Applied only to bastion.acme.lan
-# ============================================================
-
-# ------------------------------------------------------------
-# Ansible controller
-# ------------------------------------------------------------
-
-- name: Install Ansible
-  ansible.builtin.dnf:
-    name: ansible-core
-    state: present
-
 # ------------------------------------------------------------
 # Bastion SSH configuration
 # ------------------------------------------------------------
 
+- name: Remove obsolete Bastion SSH configuration
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/90-bastion.conf
+    state: absent
+  notify: Restart sshd
+
 - name: Configure Bastion-specific SSH settings
   ansible.builtin.copy:
-    dest: /etc/ssh/sshd_config.d/90-bastion.conf
+    dest: /etc/ssh/sshd_config.d/00-bastion.conf
     owner: root
     group: root
     mode: "0600"
@@ -33,97 +24,3 @@
           AuthenticationMethods publickey,keyboard-interactive
           PasswordAuthentication no
   notify: Restart sshd
-
-# ------------------------------------------------------------
-# TOTP
-# ------------------------------------------------------------
-
-- name: Install Google Authenticator PAM module
-  ansible.builtin.dnf:
-    name: google-authenticator
-    state: present
-
-- name: Configure Google Authenticator for SSH PAM
-  ansible.builtin.lineinfile:
-    path: /etc/pam.d/sshd
-    regexp: '^auth\s+required\s+pam_google_authenticator\.so.*$'
-    line: 'auth required pam_google_authenticator.so nullok'
-    insertbefore: '^auth.*substack.*password-auth'
-    state: present
-  notify: Restart sshd
-
-- name: Deploy Google Authenticator configuration for ACME users
-  ansible.builtin.copy:
-    dest: "/home/{{ item.name }}/.google_authenticator"
-    owner: "{{ item.name }}"
-    group: "{{ item.name }}"
-    mode: "0600"
-    content: |
-      {{ item.secret }}
-      " RATE_LIMIT 3 30
-      " WINDOW_SIZE 3
-      " DISALLOW_REUSE
-      " TOTP_AUTH
-  loop:
-    - name: alabelle
-      secret: "{{ vault_alabelle_totp_secret }}"
-    - name: zlizotte
-      secret: "{{ vault_zlizotte_totp_secret }}"
-  no_log: true
-
-# ------------------------------------------------------------
-# Fail2ban
-# ------------------------------------------------------------
-
-- name: Install Fail2ban
-  ansible.builtin.dnf:
-    name: fail2ban
-    state: present
-
-- name: Configure Fail2ban for SSH
-  ansible.builtin.copy:
-    dest: /etc/fail2ban/jail.d/sshd.local
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      [sshd]
-      enabled = true
-      backend = systemd
-      maxretry = 5
-      findtime = 10m
-      bantime = 10m
-  notify: Restart Fail2ban
-
-- name: Enable and start Fail2ban
-  ansible.builtin.systemd_service:
-    name: fail2ban
-    enabled: true
-    state: started
-
-# ------------------------------------------------------------
-# Firewalld - Public SSH exception
-# ------------------------------------------------------------
-
-- name: Allow public SSH only from MFA workstation
-  ansible.posix.firewalld:
-    zone: public
-    rich_rule: >-
-      rule family="ipv4"
-      source address="{{ public_client_ip }}/32"
-      service name="ssh"
-      accept
-    state: enabled
-    permanent: true
-    immediate: true
-
-- name: Log public SSH attempts
-  ansible.posix.firewalld:
-    zone: public
-    rich_rule: >-
-      rule family="ipv4"
-      service name="ssh"
-      log prefix="ACME-SSH " limit value="5/m"
-    state: enabled
-    permanent: true
-    immediate: true
