@@ -65,11 +65,23 @@
     mode: "2755"
   notify: Restart systemd-journald
 
+- name: Create journald configuration directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Configure persistent systemd journal
-  ansible.builtin.lineinfile:
-    path: /etc/systemd/journald.conf
-    regexp: '^#?Storage='
-    line: 'Storage=persistent'
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/99-acme.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Journal]
+      Storage=persistent
   notify: Restart systemd-journald
 
 # ------------------------------------------------------------
