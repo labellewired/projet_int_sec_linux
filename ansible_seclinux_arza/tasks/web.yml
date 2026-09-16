@@ -17,7 +17,172 @@
       - php-fpm
       - php-mysqlnd
       - httpd-tools
+      - python3-PyMySQL
+      - openssl
     state: present
+
+# ------------------------------------------------------------
+# Web application
+# ------------------------------------------------------------
+
+- name: Create ACME web root
+  ansible.builtin.file:
+    path: /var/www/acme
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: "0755"
+
+- name: Deploy ACME web application
+  ansible.builtin.template:
+    src: index.php.j2
+    dest: /var/www/acme/index.php
+    owner: nginx
+    group: nginx
+    mode: "0644"
+
+# ------------------------------------------------------------
+# TLS certificate
+# ------------------------------------------------------------
+
+- name: Create Nginx TLS directory
+  ansible.builtin.file:
+    path: /etc/nginx/tls
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Generate ACME TLS private key
+  community.crypto.openssl_privatekey:
+    path: /etc/nginx/tls/acme.key
+    owner: root
+    group: root
+    mode: "0600"
+    size: 2048
+
+- name: Generate ACME TLS certificate
+  community.crypto.x509_certificate:
+    path: /etc/nginx/tls/acme.crt
+    privatekey_path: /etc/nginx/tls/acme.key
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    owner: root
+    group: root
+    mode: "0644"
+
+# ------------------------------------------------------------
+# /admin authentication
+# ------------------------------------------------------------
+
+- name: Create Nginx administration password file
+  community.general.htpasswd:
+    path: /etc/nginx/.htpasswd
+    name: "{{ vault_web_username }}"
+    password: "{{ vault_web_password }}"
+    owner: root
+    group: nginx
+    mode: "0640"
+
+# ------------------------------------------------------------
+# MariaDB
+# ------------------------------------------------------------
+
+- name: Configure MariaDB to listen only on localhost
+  ansible.builtin.copy:
+    dest: /etc/my.cnf.d/acme.cnf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [mysqld]
+      bind-address=127.0.0.1
+  notify: Restart MariaDB
+
+- name: Enable and start MariaDB
+  ansible.builtin.systemd_service:
+    name: mariadb
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# MariaDB database
+# ------------------------------------------------------------
+
+- name: Create ACME application database
+  community.mysql.mysql_db:
+    name: acme
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+
+- name: Create ACME users table
+  community.mysql.mysql_query:
+    login_db: acme
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    query: |
+      CREATE TABLE IF NOT EXISTS users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(50) NOT NULL UNIQUE,
+          password_hash VARCHAR(64) NOT NULL
+      );
+
+- name: Create or update ACME web login
+  community.mysql.mysql_query:
+    login_db: acme
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    query: |
+      INSERT INTO users (username, password_hash)
+      VALUES (%(username)s, %(password_hash)s)
+      ON DUPLICATE KEY UPDATE
+          password_hash = VALUES(password_hash);
+    named_args:
+      username: "{{ vault_web_username }}"
+      password_hash: "{{ vault_web_password | hash('sha256') }}"
+  no_log: true
+
+- name: Create ACME application database user
+  community.mysql.mysql_user:
+    name: acme_web
+    password: "{{ vault_mariadb_app_password }}"
+    host: localhost
+    priv: "acme.*:SELECT"
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  no_log: true
+
+# ------------------------------------------------------------
+# PHP-FPM
+# ------------------------------------------------------------
+
+- name: Configure PHP-FPM user
+  ansible.builtin.lineinfile:
+    path: /etc/php-fpm.d/www.conf
+    regexp: '^user ='
+    line: 'user = nginx'
+  notify: Restart PHP-FPM
+
+- name: Configure PHP-FPM group
+  ansible.builtin.lineinfile:
+    path: /etc/php-fpm.d/www.conf
+    regexp: '^group ='
+    line: 'group = nginx'
+  notify: Restart PHP-FPM
+
+- name: Enable and start PHP-FPM
+  ansible.builtin.systemd_service:
+    name: php-fpm
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# SELinux
+# ------------------------------------------------------------
+
+- name: Allow web server to connect to MariaDB
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect_db
+    state: true
+    persistent: true
 
 # ------------------------------------------------------------
 # Nginx
@@ -53,12 +218,6 @@
               try_files $uri $uri/ /index.php?$query_string;
           }
 
-          location ~ \.php$ {
-              include fastcgi_params;
-              fastcgi_pass unix:/run/php-fpm/www.sock;
-              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-          }
-
           location /admin {
               allow {{ administration_client_ip }};
               deny all;
@@ -68,71 +227,14 @@
 
               try_files $uri $uri/ /index.php?$query_string;
           }
+
+          location ~ \.php$ {
+              include fastcgi_params;
+              fastcgi_pass unix:/run/php-fpm/www.sock;
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+          }
       }
   notify: Reload nginx
-
-# ------------------------------------------------------------
-# Web application
-# ------------------------------------------------------------
-
-- name: Create ACME web root
-  ansible.builtin.file:
-    path: /var/www/acme
-    state: directory
-    owner: nginx
-    group: nginx
-    mode: "0755"
-
-- name: Deploy ACME web application
-  ansible.builtin.template:
-    src: index.php.j2
-    dest: /var/www/acme/index.php
-    owner: nginx
-    group: nginx
-    mode: "0644"
-
-# ------------------------------------------------------------
-# TLS directory
-# ------------------------------------------------------------
-
-- name: Create Nginx TLS directory
-  ansible.builtin.file:
-    path: /etc/nginx/tls
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-
-# ------------------------------------------------------------
-# MariaDB
-# ------------------------------------------------------------
-
-- name: Configure MariaDB to listen only on localhost
-  ansible.builtin.copy:
-    dest: /etc/my.cnf.d/acme.cnf
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      [mysqld]
-      bind-address=127.0.0.1
-  notify: Restart MariaDB
-
-# ------------------------------------------------------------
-# Services
-# ------------------------------------------------------------
-
-- name: Enable and start MariaDB
-  ansible.builtin.systemd_service:
-    name: mariadb
-    enabled: true
-    state: started
-
-- name: Enable and start PHP-FPM
-  ansible.builtin.systemd_service:
-    name: php-fpm
-    enabled: true
-    state: started
 
 - name: Enable and start Nginx
   ansible.builtin.systemd_service:
