@@ -1,0 +1,67 @@
+<?php
+session_start();
+
+$username = "fhoule";
+$password = "{{ vault_web_password }}";
+
+$error = "";
+
+if (isset($_POST["username"], $_POST["password"])) {
+    if (
+        $_POST["username"] === $username &&
+        hash_equals($password, $_POST["password"])
+    ) {
+        $_SESSION["authenticated"] = true;
+        header("Location: /");
+        exit;
+    }
+
+    $error = "Nom d'utilisateur ou mot de passe incorrect.";
+}
+
+if (isset($_GET["logout"])) {
+    session_destroy();
+    header("Location: /");
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>ACME</title>
+</head>
+<body>
+
+<?php if (!isset($_SESSION["authenticated"])): ?>
+
+    <h1>Connexion</h1>
+
+    <?php if ($error): ?>
+        <p><strong><?= htmlspecialchars($error) ?></strong></p>
+    <?php endif; ?>
+
+    <form method="post">
+        <p>
+            <label>Nom d'utilisateur :</label><br>
+            <input type="text" name="username" required>
+        </p>
+
+        <p>
+            <label>Mot de passe :</label><br>
+            <input type="password" name="password" required>
+        </p>
+
+        <button type="submit">Connexion</button>
+    </form>
+
+<?php else: ?>
+
+    <h1><strong>Merci beaucoup Fabrice pour l'enseignement durant ce bloc !</strong></h1>
+
+    <p><a href="/?logout=1">Déconnexion</a></p>
+
+<?php endif; ?>
+
+</body>
+</html>
