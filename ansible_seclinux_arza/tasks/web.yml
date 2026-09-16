@@ -301,3 +301,12 @@
     state: enabled
     permanent: true
     immediate: true
+
+- name: Allow HTTPS on administration interface
+  ansible.posix.firewalld:
+    zone: administration
+    service: https
+    state: enabled
+    permanent: true
+    immediate: true
+    
