@@ -14,24 +14,6 @@
     state: present
 
 # ------------------------------------------------------------
-# Chrony client
-# ------------------------------------------------------------
-
-- name: Configure Chrony to use infrastructure server
-  ansible.builtin.copy:
-    dest: /etc/chrony.conf
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      server {{ ntp_server }} iburst
-
-      driftfile /var/lib/chrony/drift
-      makestep 1.0 3
-      rtcsync
-  notify: Restart chronyd
-
-# ------------------------------------------------------------
 # Bastion SSH configuration
 # ------------------------------------------------------------
 
