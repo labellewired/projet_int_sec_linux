@@ -127,6 +127,18 @@
     permanent: true
     immediate: true
 
+- name: Allow SSH to Bastion from MFA workstation
+  ansible.posix.firewalld:
+    zone: public
+    rich_rule: >-
+      rule family="ipv4"
+      source address="10.10.1.200/32"
+      service name="ssh"
+      accept
+    state: enabled
+    permanent: true
+    immediate: true
+
 - name: Log public SSH attempts
   ansible.posix.firewalld:
     zone: public
