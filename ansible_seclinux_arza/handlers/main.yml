@@ -48,6 +48,11 @@
     name: rsyslog
     state: restarted
 
+- name: Restart Fail2ban
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    state: restarted
+
 - name: Load audit rules
   ansible.builtin.command:
     cmd: augenrules --load
