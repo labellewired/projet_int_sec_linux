@@ -47,7 +47,7 @@
   ansible.builtin.lineinfile:
     path: /etc/pam.d/sshd
     line: "auth required pam_google_authenticator.so"
-    insertafter: EOF
+    insertbefore: '^auth.*substack.*password-auth'
     state: present
   notify: Restart sshd
 
