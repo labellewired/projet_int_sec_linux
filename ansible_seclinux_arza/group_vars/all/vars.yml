@@ -13,7 +13,7 @@ administration_network: 10.10.10.0/24
 
 # Network interfaces
 public_interface: ens33
-administration_interface: ens37
+administration_interface: ens36
 
 # Workstations
 public_client_ip: 10.10.1.200
@@ -33,11 +33,6 @@ acme_users:
   - zlizotte
 
 # SSH users
-
-acme_users:
-  - alabelle
-  - zlizotte
-
 acme_ssh_users:
   - name: alabelle
     public_key: "{{ alabelle_ssh_public_key }}"
