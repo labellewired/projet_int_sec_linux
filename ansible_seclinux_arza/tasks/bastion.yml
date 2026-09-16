@@ -117,9 +117,7 @@
     mode: "0600"
     content: |
       {{ item.secret }}
-      " RATE_LIMIT 3 30
       " WINDOW_SIZE 3
-      " DISALLOW_REUSE
       " TOTP_AUTH
   loop:
     - name: alabelle
