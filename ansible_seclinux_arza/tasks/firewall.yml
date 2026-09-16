@@ -33,10 +33,11 @@
   notify: Reload firewalld
 
 - name: Set default firewalld zone to drop
-  ansible.builtin.command:
-    cmd: firewall-cmd --set-default-zone=drop
-  register: firewalld_default_zone
-  changed_when: "'ZONE_ALREADY_SET' not in firewalld_default_zone.stderr"
+  ansible.builtin.lineinfile:
+    path: /etc/firewalld/firewalld.conf
+    regexp: '^DefaultZone='
+    line: 'DefaultZone=drop'
+  notify: Reload firewalld
 
 # ------------------------------------------------------------
 # Interface assignments
