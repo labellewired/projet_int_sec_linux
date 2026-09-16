@@ -1,24 +1,70 @@
 ---
+# ============================================================
+# ACME - Main deployment playbook
+# ============================================================
 
-- hosts: all
+# ------------------------------------------------------------
+# Common configuration - All servers
+# ------------------------------------------------------------
+
+- name: Configure common ACME settings
+  hosts: all
   become: true
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
   tasks:
     - import_tasks: tasks/common.yml
     - import_tasks: tasks/networking.yml
     - import_tasks: tasks/firewall.yml
     - import_tasks: tasks/ssh.yml
 
-- hosts: bastion
+
+# ------------------------------------------------------------
+# Bastion
+# ------------------------------------------------------------
+
+- name: Configure Bastion server
+  hosts: bastion
   become: true
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
   tasks:
+    - import_tasks: tasks/chrony_client.yml
+    - import_tasks: tasks/rsyslog_client.yml
     - import_tasks: tasks/bastion.yml
 
-- hosts: web
+
+# ------------------------------------------------------------
+# Web
+# ------------------------------------------------------------
+
+- name: Configure Web server
+  hosts: web
   become: true
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
   tasks:
+    - import_tasks: tasks/chrony_client.yml
+    - import_tasks: tasks/rsyslog_client.yml
     - import_tasks: tasks/web.yml
 
-- hosts: infra
+
+# ------------------------------------------------------------
+# Infrastructure
+# ------------------------------------------------------------
+
+- name: Configure Infrastructure server
+  hosts: infra
   become: true
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
   tasks:
     - import_tasks: tasks/infra.yml
