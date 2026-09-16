@@ -62,9 +62,18 @@
     mode: "0600"
     size: 2048
 
+- name: Generate ACME TLS CSR
+  community.crypto.openssl_csr:
+    path: /etc/nginx/tls/acme.csr
+    privatekey_path: /etc/nginx/tls/acme.key
+    common_name: "www.{{ acme_domain }}"
+    subject_alt_name:
+      - "DNS:www.{{ acme_domain }}"
+      
 - name: Generate ACME TLS certificate
   community.crypto.x509_certificate:
     path: /etc/nginx/tls/acme.crt
+    csr_path: /etc/nginx/tls/acme.csr
     privatekey_path: /etc/nginx/tls/acme.key
     provider: selfsigned
     selfsigned_not_after: "+3650d"
@@ -111,9 +120,12 @@
 # MariaDB database
 # ------------------------------------------------------------
 
-- name: Create ACME application database
-  community.mysql.mysql_db:
-    name: acme
+- name: Create ACME application database user
+  community.mysql.mysql_user:
+    name: acme_web
+    password: "{{ vault_mariadb_app_password }}"
+    host: 127.0.0.1
+    priv: "acme.*:SELECT"
     state: present
     login_unix_socket: /var/lib/mysql/mysql.sock
 
@@ -170,6 +182,14 @@
     line: 'group = nginx'
   notify: Restart PHP-FPM
 
+- name: Allow PHP-FPM to write session files
+  ansible.builtin.file:
+    path: /var/lib/php/session
+    state: directory
+    owner: root
+    group: nginx
+    mode: "0770"
+    
 - name: Enable and start PHP-FPM
   ansible.builtin.systemd_service:
     name: php-fpm
