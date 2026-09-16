@@ -1,0 +1,29 @@
+---
+# ============================================================
+# ACME - OpenSCAP Audit Preparation
+# ============================================================
+
+- name: Prepare servers for OpenSCAP audit
+  hosts: all
+  become: true
+
+  tasks:
+
+    - name: Install OpenSCAP packages
+      ansible.builtin.dnf:
+        name:
+          - openscap-scanner
+          - scap-security-guide
+        state: present
+
+    - name: Verify OpenSCAP datastream exists
+      ansible.builtin.stat:
+        path: /usr/share/xml/scap/ssg/content/ssg-cs10-ds.xml
+      register: openscap_datastream
+
+    - name: Confirm OpenSCAP is ready
+      ansible.builtin.assert:
+        that:
+          - openscap_datastream.stat.exists
+        fail_msg: "OpenSCAP datastream ssg-cs10-ds.xml was not found."
+        success_msg: "OpenSCAP is installed and ready for the CIS audit."
