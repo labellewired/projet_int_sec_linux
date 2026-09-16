@@ -17,7 +17,7 @@ administration_interface: ens36
 
 # Workstations
 public_client_ip: 10.10.1.200
-administration_client_ip: 10.10.10.200
+administration_client_ip: 10.10.10.100
 
 # DNS
 primary_dns: 10.10.10.40
