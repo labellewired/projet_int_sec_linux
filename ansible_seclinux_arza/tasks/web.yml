@@ -1,0 +1,312 @@
+---
+# ============================================================
+# ACME - Web Server Configuration
+# ============================================================
+
+# ------------------------------------------------------------
+# Packages
+# ------------------------------------------------------------
+
+- name: Install web server packages
+  ansible.builtin.dnf:
+    name:
+      - nginx
+      - mariadb-server
+      - php
+      - php-fpm
+      - php-mysqlnd
+      - httpd-tools
+      - python3-PyMySQL
+      - python3-passlib
+      - python3-cryptography
+      - openssl
+    state: present
+
+# ------------------------------------------------------------
+# Services
+# ------------------------------------------------------------
+
+- name: Ensure MariaDB is enabled and running
+  ansible.builtin.systemd_service:
+    name: mariadb
+    enabled: true
+    state: started
+
+- name: Ensure PHP-FPM is enabled and running
+  ansible.builtin.systemd_service:
+    name: php-fpm
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Web root
+# ------------------------------------------------------------
+
+- name: Create ACME web root
+  ansible.builtin.file:
+    path: /var/www/acme
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: "0755"
+
+- name: Deploy ACME web application
+  ansible.builtin.template:
+    src: templates/index.php.j2
+    dest: /var/www/acme/index.php
+    owner: nginx
+    group: nginx
+    mode: "0644"
+  notify: Reload nginx
+
+# ------------------------------------------------------------
+# PHP-FPM
+# ------------------------------------------------------------
+
+- name: Configure PHP-FPM user
+  ansible.builtin.lineinfile:
+    path: /etc/php-fpm.d/www.conf
+    regexp: '^user ='
+    line: 'user = nginx'
+  notify: Restart PHP-FPM
+
+- name: Configure PHP-FPM group
+  ansible.builtin.lineinfile:
+    path: /etc/php-fpm.d/www.conf
+    regexp: '^group ='
+    line: 'group = nginx'
+  notify: Restart PHP-FPM
+
+- name: Allow PHP-FPM to write session files
+  ansible.builtin.file:
+    path: /var/lib/php/session
+    state: directory
+    owner: root
+    group: nginx
+    mode: "0770"
+
+# ------------------------------------------------------------
+# MariaDB
+# ------------------------------------------------------------
+
+- name: Configure MariaDB to listen only on localhost
+  ansible.builtin.lineinfile:
+    path: /etc/my.cnf.d/mariadb-server.cnf
+    regexp: '^#?bind-address'
+    line: 'bind-address=127.0.0.1'
+    insertafter: '^\[mysqld\]'
+  notify: Restart MariaDB
+
+- name: Create ACME database
+  community.mysql.mysql_db:
+    name: acme
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+
+- name: Create ACME application database user
+  community.mysql.mysql_user:
+    name: acme_web
+    password: "{{ vault_mariadb_app_password }}"
+    host: 127.0.0.1
+    priv: "acme.*:SELECT"
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+
+- name: Create ACME users table
+  community.mysql.mysql_query:
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    login_db: acme
+    query: |
+      CREATE TABLE IF NOT EXISTS users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(64) NOT NULL UNIQUE,
+          password_hash VARCHAR(64) NOT NULL
+      );
+  changed_when: false
+
+- name: Create ACME web login user
+  community.mysql.mysql_query:
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    login_db: acme
+    query: |
+      INSERT INTO users (username, password_hash)
+      VALUES (
+          '{{ vault_web_username }}',
+          SHA2('{{ vault_web_password }}', 256)
+      )
+      ON DUPLICATE KEY UPDATE
+          password_hash = VALUES(password_hash);
+  no_log: true
+
+# ------------------------------------------------------------
+# SELinux
+# ------------------------------------------------------------
+
+- name: Allow web server to connect to MariaDB
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect_db
+    state: true
+    persistent: true
+
+# ------------------------------------------------------------
+# TLS
+# ------------------------------------------------------------
+
+- name: Create Nginx TLS directory
+  ansible.builtin.file:
+    path: /etc/nginx/tls
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Generate ACME TLS private key
+  community.crypto.openssl_privatekey:
+    path: /etc/nginx/tls/acme.key
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Generate ACME TLS CSR
+  community.crypto.openssl_csr:
+    path: /etc/nginx/tls/acme.csr
+    privatekey_path: /etc/nginx/tls/acme.key
+    common_name: "www.{{ acme_domain }}"
+    subject_alt_name:
+      - "DNS:www.{{ acme_domain }}"
+
+- name: Generate ACME TLS certificate
+  community.crypto.x509_certificate:
+    path: /etc/nginx/tls/acme.crt
+    csr_path: /etc/nginx/tls/acme.csr
+    privatekey_path: /etc/nginx/tls/acme.key
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+# ------------------------------------------------------------
+# /admin authentication
+# ------------------------------------------------------------
+
+- name: Create Nginx basic authentication file
+  community.general.htpasswd:
+    path: /etc/nginx/.htpasswd
+    name: "{{ vault_web_username }}"
+    password: "{{ vault_web_password }}"
+    owner: root
+    group: nginx
+    mode: "0640"
+  no_log: true
+  notify: Reload nginx
+
+# ------------------------------------------------------------
+# Nginx configuration
+# ------------------------------------------------------------
+
+- name: Disable default Nginx IPv6 listener
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*#?\s*listen\s+\[::\]:80;'
+    line: '        # listen       [::]:80;'
+    state: present
+  notify: Reload nginx
+
+- name: Remove default Nginx configuration
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+  notify: Reload nginx
+
+- name: Configure ACME Nginx virtual host
+  ansible.builtin.copy:
+    dest: /etc/nginx/conf.d/acme.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      server {
+          listen 80;
+          server_name www.{{ acme_domain }};
+
+          return 301 https://$host$request_uri;
+      }
+
+      server {
+          listen 443 ssl;
+          server_name www.{{ acme_domain }};
+
+          root /var/www/acme;
+          index index.php index.html;
+
+          ssl_certificate /etc/nginx/tls/acme.crt;
+          ssl_certificate_key /etc/nginx/tls/acme.key;
+          ssl_protocols TLSv1.2 TLSv1.3;
+
+          location / {
+              try_files $uri $uri/ /index.php?$query_string;
+          }
+
+          location /admin {
+              allow {{ administration_client_ip }};
+              deny all;
+
+              auth_basic "ACME Administration";
+              auth_basic_user_file /etc/nginx/.htpasswd;
+
+              try_files $uri $uri/ /index.php?$query_string;
+          }
+
+          location ~ \.php$ {
+              include fastcgi_params;
+              fastcgi_pass unix:/run/php-fpm/www.sock;
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+          }
+      }
+  notify: Reload nginx
+
+# ------------------------------------------------------------
+# Validate and start Nginx
+# ------------------------------------------------------------
+
+- name: Validate Nginx configuration
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+
+- name: Ensure Nginx is enabled and running
+  ansible.builtin.systemd_service:
+    name: nginx
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewall - HTTP/HTTPS
+# ------------------------------------------------------------
+
+- name: Allow HTTP on public interface
+  ansible.posix.firewalld:
+    zone: public
+    service: http
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Allow HTTPS on public interface
+  ansible.posix.firewalld:
+    zone: public
+    service: https
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Allow HTTPS on administration interface
+  ansible.posix.firewalld:
+    zone: administration
+    service: https
+    state: enabled
+    permanent: true
+    immediate: true
+    

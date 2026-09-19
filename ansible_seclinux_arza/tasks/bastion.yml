@@ -1,0 +1,191 @@
+---
+# ============================================================
+# ACME - Bastion server configuration
+# Applied only to bastion.acme.lan
+# ============================================================
+
+# ------------------------------------------------------------
+# Time synchronization
+# ------------------------------------------------------------
+
+- name: Configure Chrony to use infrastructure server
+  ansible.builtin.copy:
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      server 10.10.10.40 iburst
+
+      driftfile /var/lib/chrony/drift
+      makestep 1.0 3
+      rtcsync
+  notify: Restart chronyd
+
+- name: Ensure Chrony is enabled and running
+  ansible.builtin.systemd_service:
+    name: chronyd
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Remote logging
+# ------------------------------------------------------------
+
+- name: Configure remote logging to infrastructure server
+  ansible.builtin.copy:
+    dest: /etc/rsyslog.d/acme-forward.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      *.* @@10.10.10.40:514
+  notify: Restart rsyslog
+
+- name: Ensure rsyslog is enabled and running
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Ansible controller
+# ------------------------------------------------------------
+
+- name: Install Ansible
+  ansible.builtin.dnf:
+    name: ansible-core
+    state: present
+
+# ------------------------------------------------------------
+# Bastion SSH configuration
+# ------------------------------------------------------------
+
+# This file intentionally loads before Red Hat's 50-redhat.conf.
+# Red Hat sets ChallengeResponseAuthentication to no.
+# Loading this configuration first allows keyboard-interactive
+# authentication to be used for Bastion MFA.
+
+- name: Configure Bastion-specific SSH settings
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-bastion.conf
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      PubkeyAuthentication yes
+      KbdInteractiveAuthentication yes
+      UsePAM yes
+      AllowTcpForwarding yes
+
+      Match Address {{ public_client_ip }}
+          AuthenticationMethods publickey,keyboard-interactive
+          PasswordAuthentication no
+  notify: Restart sshd
+
+# ------------------------------------------------------------
+# TOTP / Google Authenticator
+# ------------------------------------------------------------
+
+- name: Install Google Authenticator PAM module
+  ansible.builtin.dnf:
+    name: google-authenticator
+    state: present
+
+- name: Configure Google Authenticator for SSH PAM
+  ansible.builtin.blockinfile:
+    path: /etc/pam.d/sshd
+    marker: "# {mark} ACME SSH MFA"
+    insertafter: '^#%PAM-1.0'
+    block: |
+      auth required pam_google_authenticator.so nullok
+      auth sufficient pam_permit.so
+  notify: Restart sshd
+
+- name: Disable password-auth in SSH PAM authentication stack
+  ansible.builtin.replace:
+    path: /etc/pam.d/sshd
+    regexp: '^auth\s+substack\s+password-auth$'
+    replace: '# auth       substack     password-auth'
+  notify: Restart sshd
+
+- name: Deploy Google Authenticator configuration for ACME users
+  ansible.builtin.copy:
+    dest: "/home/{{ item.name }}/.google_authenticator"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0600"
+    content: |
+      {{ item.secret }}
+      " WINDOW_SIZE 3
+      " TOTP_AUTH
+  loop:
+    - name: alabelle
+      secret: "{{ vault_alabelle_totp_secret }}"
+    - name: zlizotte
+      secret: "{{ vault_zlizotte_totp_secret }}"
+  no_log: true
+
+# ------------------------------------------------------------
+# Fail2ban
+# ------------------------------------------------------------
+
+- name: Install Fail2ban
+  ansible.builtin.dnf:
+    name: fail2ban
+    state: present
+
+- name: Configure Fail2ban for SSH
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [sshd]
+      enabled = true
+      backend = systemd
+      maxretry = 5
+      findtime = 10m
+      bantime = 10m
+  notify: Restart Fail2ban
+
+- name: Enable and start Fail2ban
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewalld - Public SSH exception
+# ------------------------------------------------------------
+
+# The common firewall configuration removes SSH from the public
+# zone. Only the designated MFA workstation is permitted to
+# reach Bastion SSH through the public interface.
+
+- name: Allow public SSH only from MFA workstation
+  ansible.posix.firewalld:
+    zone: public
+    rich_rule: >-
+      rule family="ipv4"
+      source address="{{ public_client_ip }}/32"
+      service name="ssh"
+      accept
+    state: enabled
+    permanent: true
+    immediate: true
+
+# Log other SSH attempts reaching the public zone.
+# This rule logs the attempt but does not accept it.
+
+- name: Log public SSH attempts
+  ansible.posix.firewalld:
+    zone: public
+    rich_rule: >-
+      rule family="ipv4"
+      service name="ssh"
+      log prefix="ACME-SSH " limit value="5/m"
+    state: enabled
+    permanent: true
+    immediate: true

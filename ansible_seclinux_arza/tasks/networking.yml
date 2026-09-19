@@ -1,0 +1,46 @@
+---
+# ============================================================
+# ACME - Network configuration
+# Applied to all servers
+# ============================================================
+
+# ------------------------------------------------------------
+# Public interface
+# ------------------------------------------------------------
+
+- name: Configure public network interface
+  community.general.nmcli:
+    conn_name: "{{ public_interface }}"
+    ifname: "{{ public_interface }}"
+    type: ethernet
+    ip4: "{{ public_ip }}/24"
+    gw4: "{{ public_gateway }}"
+    dns4:
+      - "{{ primary_dns }}"
+      - "{{ secondary_dns }}"
+    dns4_ignore_auto: true
+    method4: manual
+    autoconnect: true
+    state: present
+    conn_reload: true
+
+# ------------------------------------------------------------
+# Administration interface
+# ------------------------------------------------------------
+
+- name: Configure administration network interface
+  community.general.nmcli:
+    conn_name: "{{ administration_interface }}"
+    ifname: "{{ administration_interface }}"
+    type: ethernet
+    ip4: "{{ administration_ip }}/24"
+    method4: manual
+    never_default4: true
+    autoconnect: true
+    state: present
+    conn_reload: true
+
+- name: Activate administration network interface
+  community.general.nmcli:
+    conn_name: "{{ administration_interface }}"
+    state: up

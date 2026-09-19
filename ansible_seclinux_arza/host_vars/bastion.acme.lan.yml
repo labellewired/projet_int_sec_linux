@@ -1,0 +1,5 @@
+---
+acme_hostname: bastion.acme.lan
+
+public_ip: 10.10.1.10
+administration_ip: 10.10.10.10

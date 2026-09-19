@@ -1,0 +1,64 @@
+---
+# ============================================================
+# ACME - Common SSH configuration
+# Applied to all servers
+# ============================================================
+
+# ------------------------------------------------------------
+# OpenSSH
+# ------------------------------------------------------------
+
+- name: Ensure OpenSSH server is installed
+  ansible.builtin.dnf:
+    name: openssh-server
+    state: present
+
+- name: Ensure SSH configuration directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ------------------------------------------------------------
+# SSH hardening
+# ------------------------------------------------------------
+
+- name: Deploy ACME SSH security configuration
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-acme.conf
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      PermitRootLogin no
+      MaxAuthTries 5
+      LoginGraceTime 30
+      X11Forwarding no
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+      LogLevel VERBOSE
+  notify: Restart sshd
+
+# ------------------------------------------------------------
+# Authorized SSH keys
+# ------------------------------------------------------------
+
+- name: Deploy authorized SSH keys for ACME users
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.public_key }}"
+    state: present
+    exclusive: false
+  loop: "{{ acme_ssh_users }}"
+
+# ------------------------------------------------------------
+# SSH service
+# ------------------------------------------------------------
+
+- name: Ensure sshd is enabled and running
+  ansible.builtin.systemd_service:
+    name: sshd
+    enabled: true
+    state: started

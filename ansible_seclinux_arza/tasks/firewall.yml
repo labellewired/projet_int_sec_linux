@@ -1,0 +1,95 @@
+---
+# ============================================================
+# ACME - Common firewall configuration
+# Applied to all servers
+# ============================================================
+
+# ------------------------------------------------------------
+# Firewalld service
+# ------------------------------------------------------------
+
+- name: Ensure firewalld is enabled and running
+  ansible.builtin.systemd_service:
+    name: firewalld
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewall zones
+# ------------------------------------------------------------
+
+- name: Ensure public zone exists
+  ansible.posix.firewalld:
+    zone: public
+    state: present
+    permanent: true
+
+- name: Ensure administration zone exists
+  ansible.posix.firewalld:
+    zone: administration
+    state: present
+    permanent: true
+
+- name: Reload firewalld after creating zones
+  ansible.builtin.command:
+    cmd: firewall-cmd --reload
+  changed_when: false
+
+- name: Get current default firewalld zone
+  ansible.builtin.command:
+    cmd: firewall-cmd --get-default-zone
+  register: current_default_zone
+  changed_when: false
+
+- name: Set default firewalld zone to drop
+  ansible.builtin.command:
+    cmd: firewall-cmd --set-default-zone=drop
+  when: current_default_zone.stdout | trim != "drop"
+
+# ------------------------------------------------------------
+# Zone services
+# ------------------------------------------------------------
+
+- name: Allow SSH on administration network
+  ansible.posix.firewalld:
+    zone: administration
+    service: ssh
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Remove SSH from public zone
+  ansible.posix.firewalld:
+    zone: public
+    service: ssh
+    state: disabled
+    permanent: true
+    immediate: true
+
+- name: Remove Cockpit from public zone
+  ansible.posix.firewalld:
+    zone: public
+    service: cockpit
+    state: disabled
+    permanent: true
+    immediate: true
+
+# ------------------------------------------------------------
+# Interface assignments
+# ------------------------------------------------------------
+
+- name: Assign public interface to public zone
+  ansible.posix.firewalld:
+    zone: public
+    interface: "{{ public_interface }}"
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Assign administration interface to administration zone
+  ansible.posix.firewalld:
+    zone: administration
+    interface: "{{ administration_interface }}"
+    state: enabled
+    permanent: true
+    immediate: true

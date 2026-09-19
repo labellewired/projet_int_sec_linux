@@ -1,0 +1,265 @@
+---
+# ============================================================
+# ACME - Infrastructure server configuration
+# Applied only to infra.acme.lan
+# ============================================================
+
+# ------------------------------------------------------------
+# Packages
+# ------------------------------------------------------------
+
+- name: Install infrastructure packages
+  ansible.builtin.dnf:
+    name:
+      - bind
+      - bind-utils
+      - chrony
+      - rsyslog
+      - audit
+    state: present
+
+# ------------------------------------------------------------
+# DNS - BIND
+# ------------------------------------------------------------
+
+- name: Deploy BIND configuration
+  ansible.builtin.copy:
+    dest: /etc/named.conf
+    owner: root
+    group: named
+    mode: "0640"
+    content: |
+      options {
+          listen-on port 53 {
+              127.0.0.1;
+              {{ public_ip }};
+              {{ administration_ip }};
+          };
+
+          listen-on-v6 { none; };
+
+          directory "/var/named";
+
+          allow-query {
+              127.0.0.1;
+              {{ public_network }};
+              {{ administration_network }};
+          };
+
+          recursion no;
+
+          dnssec-validation yes;
+      };
+
+      zone "{{ acme_domain }}" IN {
+          type master;
+          file "{{ acme_domain }}.zone";
+          allow-update { none; };
+      };
+  notify: Restart named
+
+- name: Deploy ACME DNS zone
+  ansible.builtin.copy:
+    dest: "/var/named/{{ acme_domain }}.zone"
+    owner: root
+    group: named
+    mode: "0640"
+    content: |
+      $TTL 3600
+
+      @   IN SOA infra.{{ acme_domain }}. admin.{{ acme_domain }}. (
+              1
+              3600
+              900
+              604800
+              86400
+      )
+
+          IN NS infra.{{ acme_domain }}.
+
+      bastion     IN A 10.10.1.10
+      web         IN A 10.10.1.20
+      www         IN A 10.10.1.20
+      infra       IN A 10.10.1.40
+  notify: Restart named
+
+- name: Enable and start BIND
+  ansible.builtin.systemd_service:
+    name: named
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Chrony server
+# ------------------------------------------------------------
+
+- name: Configure Chrony server
+  ansible.builtin.copy:
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      pool pool.ntp.org iburst
+
+      allow {{ public_network }}
+      allow {{ administration_network }}
+
+      driftfile /var/lib/chrony/drift
+      makestep 1.0 3
+      rtcsync
+  notify: Restart chronyd
+
+- name: Enable and start Chrony
+  ansible.builtin.systemd_service:
+    name: chronyd
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Rsyslog collector
+# ------------------------------------------------------------
+
+- name: Configure rsyslog collector
+  ansible.builtin.copy:
+    dest: /etc/rsyslog.d/acme-server.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      module(load="imtcp")
+
+      ruleset(name="acme_remote") {
+          if ($fromhost-ip == "10.10.10.10") then {
+              action(
+                  type="omfile"
+                  file="/var/log/remote/bastion.log"
+              )
+              stop
+          }
+
+          if ($fromhost-ip == "10.10.10.20") then {
+              action(
+                  type="omfile"
+                  file="/var/log/remote/web.log"
+              )
+              stop
+          }
+
+          stop
+      }
+
+      input(
+          type="imtcp"
+          port="514"
+          ruleset="acme_remote"
+      )
+  notify: Restart rsyslog
+
+- name: Create remote log directory
+  ansible.builtin.file:
+    path: /var/log/remote
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Enable and start rsyslog
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Auditd
+# ------------------------------------------------------------
+
+- name: Configure ACME audit rules
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/acme.rules
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      -w /etc/passwd -p wa -k identity
+      -w /etc/group -p wa -k identity
+      -w /etc/shadow -p wa -k identity
+      -w /etc/sudoers -p wa -k sudoers
+      -w /etc/sudoers.d/ -p wa -k sudoers
+      -w /etc/ssh/sshd_config -p wa -k sshd
+      -w /etc/ssh/sshd_config.d/ -p wa -k sshd
+  notify: Load audit rules
+
+- name: Enable and start auditd
+  ansible.builtin.systemd_service:
+    name: auditd
+    enabled: true
+    state: started
+
+# ------------------------------------------------------------
+# Firewalld - DNS
+# ------------------------------------------------------------
+
+- name: Allow DNS on public network
+  ansible.posix.firewalld:
+    zone: public
+    service: dns
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Allow DNS on administration network
+  ansible.posix.firewalld:
+    zone: administration
+    service: dns
+    state: enabled
+    permanent: true
+    immediate: true
+
+# ------------------------------------------------------------
+# Firewalld - NTP
+# ------------------------------------------------------------
+
+- name: Allow NTP on public network
+  ansible.posix.firewalld:
+    zone: public
+    service: ntp
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Allow NTP on administration network
+  ansible.posix.firewalld:
+    zone: administration
+    service: ntp
+    state: enabled
+    permanent: true
+    immediate: true
+
+# ------------------------------------------------------------
+# Firewalld - Rsyslog
+# ------------------------------------------------------------
+
+- name: Allow rsyslog from Bastion
+  ansible.posix.firewalld:
+    zone: administration
+    rich_rule: >-
+      rule family="ipv4"
+      source address="10.10.10.10/32"
+      port port="514" protocol="tcp"
+      accept
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Allow rsyslog from Web
+  ansible.posix.firewalld:
+    zone: administration
+    rich_rule: >-
+      rule family="ipv4"
+      source address="10.10.10.20/32"
+      port port="514" protocol="tcp"
+      accept
+    state: enabled
+    permanent: true
+    immediate: true

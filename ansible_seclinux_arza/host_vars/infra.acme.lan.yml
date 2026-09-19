@@ -1,0 +1,5 @@
+---
+acme_hostname: infra.acme.lan
+
+public_ip: 10.10.1.40
+administration_ip: 10.10.10.40

@@ -1,0 +1,58 @@
+---
+# ============================================================
+# ACME - Handlers
+# ============================================================
+
+- name: Restart systemd-journald
+  ansible.builtin.systemd_service:
+    name: systemd-journald
+    state: restarted
+
+- name: Reload firewalld
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: reloaded
+
+- name: Restart sshd
+  ansible.builtin.systemd_service:
+    name: sshd
+    state: restarted
+
+- name: Restart chronyd
+  ansible.builtin.systemd_service:
+    name: chronyd
+    state: restarted
+
+- name: Reload nginx
+  ansible.builtin.systemd_service:
+    name: nginx
+    state: reloaded
+
+- name: Restart MariaDB
+  ansible.builtin.systemd_service:
+    name: mariadb
+    state: restarted
+
+- name: Restart PHP-FPM
+  ansible.builtin.systemd_service:
+    name: php-fpm
+    state: restarted
+
+- name: Restart named
+  ansible.builtin.systemd_service:
+    name: named
+    state: restarted
+
+- name: Restart rsyslog
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    state: restarted
+
+- name: Restart Fail2ban
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    state: restarted
+
+- name: Load audit rules
+  ansible.builtin.command:
+    cmd: augenrules --load

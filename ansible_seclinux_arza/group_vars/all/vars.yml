@@ -1,0 +1,50 @@
+---
+# ============================================================
+# ACME - Global variables
+# ============================================================
+
+# Domain
+acme_domain: acme.lan
+
+# Networks
+public_network: 10.10.1.0/24
+public_gateway: 10.10.1.2
+administration_network: 10.10.10.0/24
+
+# Network interfaces
+public_interface: ens33
+administration_interface: ens36
+
+# Workstations
+public_client_ip: 10.10.1.200
+administration_client_ip: 10.10.10.100
+
+# DNS
+primary_dns: 10.10.10.40
+secondary_dns: 9.9.9.9
+
+# Infrastructure services
+ntp_server: 10.10.10.40
+rsyslog_server: 10.10.10.40
+
+# Common users
+acme_users:
+  - name: alabelle
+    password: "{{ vault_alabelle_password_hash }}"
+  - name: zlizotte
+    password: "{{ vault_zlizotte_password_hash }}"
+
+# SSH users
+acme_ssh_users:
+  - name: alabelle
+    public_key: "{{ alabelle_ssh_public_key }}"
+
+  - name: zlizotte
+    public_key: "{{ zlizotte_ssh_public_key }}"
+
+alabelle_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBUwY3Io+q9AuQjH8xvKOHR8S1UoqeofK+hlt1ePERzW alabelle"
+zlizotte_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFW+bW3ccHo3abn63yvepSu8HhTwmJj8sXGpjYXP2Cuf zlizotte"
+
+# Common system configuration
+selinux_state: enforcing
+firewalld_default_zone: drop
